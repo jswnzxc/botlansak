@@ -53,18 +53,24 @@ function parseAddCommand(text, userId) {
 
   let rank = '', firstName = '', lastName = '';
 
-  // ยศที่รู้จัก (ถ้าคำแรกเป็นยศ ให้แยกออกมา)
+  // ยศที่รู้จัก
   const RANKS = ['นาย', 'นาง', 'น.ส.', 'ด.ช.', 'ด.ญ.', 'พ.ต.อ.', 'พ.ต.ท.', 'พ.ต.ต.',
                  'ร.ต.อ.', 'ร.ต.ท.', 'ร.ต.ต.', 'ส.ต.อ.', 'ส.ต.ท.', 'ส.ต.ต.',
                  'จ.ส.ต.', 'ดาบตำรวจ', 'สิบตำรวจ'];
 
-  if (nameParts.length >= 3) {
-    rank      = nameParts[0];
-    firstName = nameParts[1];
-    lastName  = nameParts.slice(2).join(' ');
-  } else if (nameParts.length === 2) {
+  if (nameParts.length >= 2) {
+    // ถ้าคำแรกเป็นยศ ให้แยกออกมา
+    if (RANKS.includes(nameParts[0])) {
+      rank = nameParts[0];
+      firstName = nameParts[1];
+      lastName = nameParts.slice(2).join(' ') || '-'; // ถ้าไม่มีนามสกุลให้ใส่ขีด
+    } else {
+      // ถ้าคำแรกไม่ใชยศ ให้เป็นชื่อเลย
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(' ');
+    }
+  } else if (nameParts.length === 1) {
     firstName = nameParts[0];
-    lastName  = nameParts[1];
   } else {
     return null; // ข้อมูลไม่ครบ
   }
