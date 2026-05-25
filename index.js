@@ -293,19 +293,28 @@ const { askAI } = require('./ai');
 
     // ── ถ้าไม่เจอผลลัพธ์ (หรือถามเป็นประโยค) ให้ส่งให้ AI ตอบ ──
     if (process.env.GEMINI_API_KEY) {
-      const [suspects, personnel, leaders] = await Promise.all([fetchAllData(), fetchPersonnel(), fetchLeaders()]);
+      // ดึงข้อมูลจาก Cache ที่มีอยู่แล้ว (ถ้ามี) แทนการ fetch ใหม่ทั้งหมด
+      const suspects  = caches['ผู้ต้องหา']?.data || [];
+      const personnel = caches['บุคลากร สภ.']?.data || [];
+      const leaders   = caches['ผู้นำตำบล']?.data || [];
       
-      // สร้างสรุปข้อมูลให้ AI (ส่งแค่ 20 คนแรกของแต่ละกลุ่มเพื่อประหยัด Token)
+      // ส่งข้อมูลสรุปที่กระชับขึ้นเพื่อให้ AI ประมวลผลเร็วขึ้น
       const context = 
-        `รายชื่อบุคคลเฝ้าระวัง: ${suspects.slice(0,20).map(p => `${p.rank}${p.firstName} (${p.crime})`).join(', ')}\n` +
-        `รายชื่อตำรวจ: ${personnel.slice(0,20).map(p => `${p.rank}${p.firstName} (${p.area})`).join(', ')}\n` +
-        `รายชื่อผู้นำชุมชน: ${leaders.slice(0,20).map(p => `${p.firstName} (${p.position} ${p.area})`).join(', ')}`;
+        `บุคคลเฝ้าระวัง: ${suspects.slice(0,15).map(p => `${p.firstName}(${p.crime})`).join(', ')}\n` +
+        `ตำรวจ: ${personnel.slice(0,15).map(p => `${p.firstName}(${p.area})`).join(', ')}\n` +
+        `ผู้นำ: ${leaders.slice(0,10).map(p => `${p.firstName}(${p.area})`).join(', ')}`;
 
-      await replyText(replyToken, '🤖 กำลังวิเคราะห์ข้อมูลสักครู่ครับ...');
-      const aiResponse = await askAI(userText, context);
+      // ส่งข้อความแจ้งผู้ใช้ทันที (Perceived Speed)
+      await replyText(replyToken, '🤖 กำลังประมวลผลคำตอบจากฐานข้อมูล...');
       
+      const aiResponse = await askAI(userText, context);
       if (aiResponse) {
-        return client.replyMessage({ replyToken, messages: [{ type: 'text', text: aiResponse }] });
+        // ใช้ pushMessage แทน reply เพราะ replyToken อาจจะหมดอายุถ้า AI คิดนาน
+        await client.pushMessage({
+          to: userId,
+          messages: [{ type: 'text', text: aiResponse }]
+        });
+        return;
       }
     }
 
