@@ -39,28 +39,25 @@ async function fetchSheet(sheetName) {
 
   try {
     const encodedSheet = encodeURIComponent(sheetName);
-    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedSheet}`;
-    const response = await axios.get(url, { timeout: 10000 });
-    const allRows = parseCSV(response.data).filter(row => row.some(cell => cell.trim() !== ''));
+    // ใช้ GID เฉพาะสำหรับหน้า "ผู้ต้องหา" เพื่อความแม่นยำ (จากลิงก์ที่คุณส่งมา)
+    let url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedSheet}`;
+    if (sheetName === SHEET_SUSPECTS) {
+      url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=1872802096`;
+    }
 
-    console.log(`📥 [${sheetName}] ทั้งหมด ${allRows.length} แถว (รวม Header)`);
+    const response = await axios.get(url, { timeout: 10000 });
+    const allRows = parseCSV(response.data);
+    
+    // กรองแถวว่าง
+    const rows = allRows.filter(row => row.some(cell => cell.trim() !== ''));
+
+    console.log(`📥 [${sheetName}] โหลด CSV สำเร็จ: ${rows.length} แถว`);
 
     let dataRows = [];
     
-    if (sheetName === SHEET_SUSPECTS) {
-      // ── สำหรับหน้า "ผู้ต้องหา" (บุคคลเฝ้าระวัง) ──
-      // ตรวจสอบว่ามีแถว Title (ฐานข้อมูลบุคคลเฝ้าระวัง...) หรือไม่
-      // ปกติถ้ามี Title แถว 1 และ Header แถว 2 ข้อมูลจะเริ่มแถว 3 (index 2)
-      // แต่ถ้าไม่มี Title ข้อมูลจะเริ่มแถว 2 (index 1)
-      const hasTitle = allRows[0] && allRows[0].length < 5; // Title มักจะมีแค่ column เดียวหรือ merged
-      const startIdx = hasTitle ? 2 : 1;
-      dataRows = allRows.slice(startIdx);
-      console.log(`🔍 [${sheetName}] เริ่มดึงที่แถว index ${startIdx}, พบข้อมูล ${dataRows.length} รายการ`);
-    } else {
-      // สำหรับหน้าอื่นๆ (บุคลากร, ผู้นำ)
-      const startIdx = 2; // ข้าม Title และ Header ตามปกติ
-      dataRows = allRows.slice(startIdx);
-    }
+    // ข้าม 2 แถวแรกเสมอ (แถว Title และแถว Header)
+    dataRows = rows.slice(2);
+    console.log(`🔍 [${sheetName}] เริ่มดึงข้อมูลจากแถวที่ 3, พบข้อมูล ${dataRows.length} รายการ`);
 
     let data = [];
 
