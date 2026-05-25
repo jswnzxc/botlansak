@@ -84,22 +84,23 @@ async function appendWatchlistPerson(person) {
     timeZone: 'Asia/Bangkok',
   });
 
-  // ลำดับคอลัมน์: A=ยศ B=ชื่อ C=นามสกุล D=คดี E=สถานะ F=พื้นที่ G=หมายเลขคดี H=วันที่บันทึก I=บันทึกโดย
+  // ลำดับคอลัมน์ตาม Sheet จริง:
+  // A=ยศ  B=ชื่อ  C=นามสกุล  D=คดี  E=สถานะ  F=พื้นที่  G=หมายเลขคดี  H=วันที่บันทึก  I=บันทึกโดย
   const row = [
-    person.rank      || '',
-    person.firstName || '',
-    person.lastName  || '',
-    person.crime     || '',
-    person.status    || 'เฝ้าระวัง',
-    person.area      || '',
-    person.caseNo    || '',
+    (person.rank      || '').trim(),
+    (person.firstName || '').trim(),
+    (person.lastName  || '').trim(),
+    (person.crime     || '').trim(),
+    (person.status    || 'เฝ้าระวัง').trim(),
+    (person.area      || '').trim(),
+    (person.caseNo    || '').trim(),
     dateStr,
     person.addedBy   || 'Admin LINE Bot',
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_WATCHLIST}!A:I`,
+    range: `${SHEET_WATCHLIST}!A3:I`, // เริ่มเขียนต่อท้ายโดยอ้างอิงจากแถวที่ 3 เป็นต้นไป
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [row] },
