@@ -111,11 +111,18 @@ async function appendWatchlistPerson(person) {
  * ตรวจสอบว่า Service Account ตั้งค่าครบหรือยัง
  */
 function isConfigured() {
-  return !!(
-    process.env.GOOGLE_CLIENT_EMAIL &&
-    process.env.GOOGLE_PRIVATE_KEY &&
-    process.env.SPREADSHEET_ID
-  );
+  const config = {
+    GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+    GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+    SPREADSHEET_ID: !!process.env.SPREADSHEET_ID,
+    GOOGLE_PROJECT_ID: !!process.env.GOOGLE_PROJECT_ID
+  };
+  
+  if (!config.GOOGLE_CLIENT_EMAIL || !config.GOOGLE_PRIVATE_KEY || !config.SPREADSHEET_ID) {
+    console.log('⚠️ [Sheets Config Missing]:', config);
+  }
+  
+  return config.GOOGLE_CLIENT_EMAIL && config.GOOGLE_PRIVATE_KEY && config.SPREADSHEET_ID;
 }
 
 module.exports = { appendWatchlistPerson, isConfigured, SHEET_WATCHLIST };

@@ -150,13 +150,23 @@ async function handleEvent(event) {
         fetchAllData(), fetchPersonnel(), fetchLeaders(),
       ]);
       const stats = getStats();
+      
+      let writeStatus = isSheetConfigured() ? '✅ พร้อม' : '⚠️ ยังไม่ตั้งค่า';
+      if (!isSheetConfigured()) {
+        const missing = [];
+        if (!process.env.GOOGLE_CLIENT_EMAIL) missing.push('EMAIL');
+        if (!process.env.GOOGLE_PRIVATE_KEY) missing.push('KEY');
+        if (!process.env.SPREADSHEET_ID) missing.push('SHEET_ID');
+        writeStatus += ` (ขาด: ${missing.join(', ')})`;
+      }
+
       return replyText(replyToken,
         `📊 สถิติข้อมูลระบบ\n\n` +
         `👮 บุคลากร สภ.: ${personnel.length} คน\n` +
         `🏘️ ผู้นำตำบล: ${leaders.length} คน\n` +
         `🔍 ผู้ต้องหา/เฝ้าระวัง: ${suspects.length} รายการ\n\n` +
         `👥 ผู้ติดตาม Bot: ${stats.total} คน\n` +
-        `⚙️ Write API: ${isSheetConfigured() ? '✅ พร้อม' : '⚠️ ยังไม่ตั้งค่า'}`
+        `⚙️ Write API: ${writeStatus}`
       );
     }
 
