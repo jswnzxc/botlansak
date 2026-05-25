@@ -20,7 +20,8 @@ const { google } = require('googleapis');
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
 // Sheet ที่จะเขียน (ตรงกับ tab ใน Google Sheets)
-const SHEET_WATCHLIST = 'บุคคลเฝ้าระวัง';
+// เปลี่ยนให้ตรงกับ tab เดิมที่คุณใช้งานอยู่
+const SHEET_WATCHLIST = 'ผู้ต้องหา';
 
 /**
  * สร้าง Google Sheets client ด้วย Service Account
