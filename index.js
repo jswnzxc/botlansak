@@ -167,31 +167,41 @@ async function handleEvent(event) {
   // [2] คำสั่งทั่วไป / ค้นหา (ลำดับความสำคัญ: คำสั่งเฉพาะ > ทักทาย > ค้นหา)
   // ─────────────────────────────────────────────────────────
   
-  if (userText === 'ทำเนียบบุคลากร' || userText === 'ตำรวจ') {
+  // 2.1 เมนูเฉพาะทาง (แบบเป๊ะๆ หรือคำหลัก)
+  if (userText.includes('ทำเนียบบุคลากร') || userText === 'ตำรวจ') {
     return replyMessage(replyToken, buildPersonnelMenuFlex());
   }
   
-  if (userText === 'ทำเนียบผู้นำตำบล' || userText === 'ผู้นำตำบล') {
+  if (userText.includes('ทำเนียบผู้นำตำบล') || userText === 'ผู้นำตำบล') {
     return replyMessage(replyToken, buildVillageLeaderMenuFlex());
   }
 
+  // 2.2 คำสั่งทักทาย / เมนูหลัก
   const greetingWords = ['สวัสดี','hello','hi','หวัดดี','เริ่ม','เมนู','help','วิธีใช้'];
-  if (greetingWords.includes(userText.toLowerCase())) {
+  if (greetingWords.some(w => userText.toLowerCase().includes(w))) {
     return replyMessage(replyToken, buildWelcomeFlex());
   }
 
-  if (userText === 'เว็บไซต์') return replyMessage(replyToken, buildWebsiteFlex());
-  if (userText === 'ข้อมูลสถานี') return replyMessage(replyToken, buildStationFlex());
+  // 2.3 บริการอื่นๆ
+  if (userText.includes('เว็บไซต์')) return replyMessage(replyToken, buildWebsiteFlex());
+  if (userText.includes('ข้อมูลสถานี')) return replyMessage(replyToken, buildStationFlex());
+  if (userText.includes('แจ้งเหตุ')) return replyText(replyToken, '🚨 แจ้งเหตุฉุกเฉิน โทร 191 หรือแอป Police I Lert U');
+  if (userText.includes('ติดต่อ')) return replyText(replyToken, '📞 ฉุกเฉิน: 191\n📱 สายตรวจ: 056-559-xxx');
 
-  // ค้นหาเบอร์โทร
+  // 2.4 ค้นหาด้วยเบอร์โทร
   if (/^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''))) {
     const results = await searchByPhone(userText);
     if (results.length === 0) return replyMessage(replyToken, buildNotFoundFlex(userText));
     return replyMessage(replyToken, buildCarouselFlex(results, userText));
   }
 
-  // ค้นหาชื่อ (ระบบเดิม + AI Fallback)
+  // 2.5 ระบบค้นหา (ชื่อบุคคล, ฝ่ายตำรวจ, ตำบลผู้นำ)
   if (userText.length >= 2) {
+    // กรณีเป็นปุ่มกดค้นหาชื่อ
+    if (userText === 'ค้นหาชื่อ') {
+      return replyText(replyToken, '🔍 พิมพ์ชื่อ-นามสกุล หรือยศที่ต้องการค้นหาได้เลยครับ');
+    }
+
     const searchQuery = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s+/, '').trim();
     const results = await searchByName(searchQuery);
     
