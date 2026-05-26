@@ -216,7 +216,11 @@ async function handleEvent(event) {
     // ตรวจสอบว่าเป็นการค้นหาแบบระบุหมวดหมู่หรือไม่
     const isPersonnelSearch = userText.startsWith('บุคลากร');
     const isLeaderSearch    = userText.startsWith('ผู้นำตำบล');
-    const searchQuery       = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s+/, '').trim();
+    
+    // ดึงเฉพาะคำที่จะใช้ค้นหาจริงๆ ออกมา (ลบคำสั่ง ค้นหา/บุคลากร/ผู้นำตำบล ออก)
+    const searchQuery = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s*/, '').trim();
+    
+    console.log(`🔍 กำลังค้นหาคำว่า: "${searchQuery}" (จากประโยค: "${userText}")`);
     
     let results = await searchByName(searchQuery);
     // [แก้ไข] กรองผลลัพธ์: ถ้าเลือกจากเมนูให้กรองเข้มงวด แต่ถ้า "ค้นหา" เองให้หาจากทุกหน้า
