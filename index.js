@@ -110,8 +110,8 @@ async function handleEvent(event) {
     ];
     const isKeyword = keywords.some(k => userText.includes(k));
     
-    // ถ้าไม่มี Keyword สำคัญเลย และไม่ใช่การพิมพ์ชื่อค้นหาตรงๆ (ที่ยาวพอ) ให้เงียบไว้
-    if (!isKeyword && userText.length < 2) {
+    // [แก้ไข] ในกลุ่ม: ถ้าไม่มี Keyword สำคัญ ให้เงียบทันที (ห้ามเช็คความยาวตัวอักษร)
+    if (!isKeyword) {
       return; 
     }
   }
