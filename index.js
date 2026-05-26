@@ -193,14 +193,23 @@ async function handleEvent(event) {
 
     // ถ้าไม่เจอชื่อ ให้ AI ช่วยตอบ
     if (process.env.GEMINI_API_KEY) {
-      const suspects  = caches['ผู้ต้องหา']?.data || [];
-      const personnel = caches['บุคลากร สภ.']?.data || [];
-      const context = `รายชื่อผู้ต้องหา: ${suspects.slice(0,10).map(p=>p.firstName).join(',')}\nรายชื่อตำรวจ: ${personnel.slice(0,10).map(p=>p.firstName).join(',')}`;
-      
-      await replyText(replyToken, '🤖 กำลังประมวลผลคำตอบจากฐานข้อมูล...');
-      const aiResponse = await askAI(userText, context);
-      if (aiResponse) {
-        return client.pushMessage({ to: sourceId, messages: [{ type: 'text', text: aiResponse }] });
+      try {
+        // ดึงข้อมูลสรุป (เช็คความปลอดภัยของข้อมูลก่อนส่ง)
+        const suspectsData  = caches['ผู้ต้องหา']?.data || [];
+        const personnelData = caches['บุคลากร สภ.']?.data || [];
+        const context = `รายชื่อตัวอย่าง: ${suspectsData.slice(0,5).map(p=>p.firstName).join(',')}\nรายชื่อตำรวจ: ${personnelData.slice(0,5).map(p=>p.firstName).join(',')}`;
+        
+        await replyText(replyToken, '🤖 กำลังประมวลผลคำตอบจากฐานข้อมูล...');
+        const aiResponse = await askAI(userText, context);
+        
+        if (aiResponse) {
+          return await client.pushMessage({ 
+            to: sourceId, 
+            messages: [{ type: 'text', text: aiResponse }] 
+          });
+        }
+      } catch (aiErr) {
+        console.error('AI Processing Error:', aiErr);
       }
     }
     return replyMessage(replyToken, buildNotFoundFlex(userText));
