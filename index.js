@@ -148,24 +148,39 @@ async function handleEvent(event) {
   }
 
   // ─────────────────────────────────────────────────────────
-  // [2] คำสั่งทั่วไป / ค้นหา
+  // [2] คำสั่งทั่วไป / ค้นหา (ลำดับความสำคัญ: คำสั่งเฉพาะ > ทักทาย > ค้นหา)
   // ─────────────────────────────────────────────────────────
-  if (isGreeting(userText) || matchKeyword(userText, ['เมนู', 'help', 'วิธีใช้'])) {
+  
+  // 2.1 เมนูเฉพาะทาง (ตรวจสอบก่อนทักทาย)
+  if (userText === 'ทำเนียบบุคลากร' || userText === 'ตำรวจ') {
+    return replyMessage(replyToken, buildPersonnelMenuFlex());
+  }
+  
+  if (userText === 'ทำเนียบผู้นำตำบล' || userText === 'ผู้นำตำบล') {
+    return replyMessage(replyToken, buildVillageLeaderMenuFlex());
+  }
+
+  // 2.2 คำสั่งทักทาย / เมนูหลัก (ใช้ matches แบบเป๊ะขึ้น)
+  const greetingWords = ['สวัสดี','hello','hi','หวัดดี','เริ่ม','เมนู','help','วิธีใช้'];
+  if (greetingWords.includes(userText.toLowerCase())) {
     return replyMessage(replyToken, buildWelcomeFlex());
   }
 
-  if (matchKeyword(userText, ['บุคลากร', 'ตำรวจ'])) return replyMessage(replyToken, buildPersonnelMenuFlex());
-  if (matchKeyword(userText, ['ผู้นำ', 'กำนัน', 'ผู้ใหญ่บ้าน'])) return replyMessage(replyToken, buildVillageLeaderMenuFlex());
+  // 2.3 บริการอื่นๆ
+  if (userText === 'เว็บไซต์') return replyMessage(replyToken, buildWebsiteFlex());
+  if (userText === 'ข้อมูลสถานี') return replyMessage(replyToken, buildStationFlex());
 
-  // ค้นหาเบอร์โทร
+  // 2.4 ค้นหาด้วยเบอร์โทร (ตรวจรูปแบบตัวเลข)
   if (isPhoneNumber(userText)) {
     const results = await searchByPhone(userText);
     if (results.length === 0) return replyMessage(replyToken, buildNotFoundFlex(userText));
     return replyMessage(replyToken, buildCarouselFlex(results, userText));
   }
 
-  // ค้นหาชื่อ (ระบบเดิม + AI Fallback)
+  // 2.5 ค้นหาด้วยชื่อ (ระบบเดิม + AI Fallback)
   if (userText.length >= 2) {
+    // กรณีเป็นคำสั่งย่อย (เช่น "บุคลากร งานสืบสวน" หรือ "ผู้นำตำบล ลานสัก") 
+    // ให้ข้ามไปใช้ระบบค้นหาปกติ
     const results = await searchByName(userText);
     if (results.length > 0) {
       if (results.length === 1) {
@@ -193,9 +208,7 @@ async function handleEvent(event) {
 }
 
 // ===== Helpers =====
-function isGreeting(t) { return ['สวัสดี','hello','hi','หวัดดี','เริ่ม'].some(g => t.toLowerCase().includes(g)); }
 function isPhoneNumber(t) { return /^(0[0-9]{8,9})$/.test(t.replace(/\D/g, '')); }
-function matchKeyword(t, kws) { return kws.some(kw => t.includes(kw)); }
 async function replyMessage(token, msg) { return client.replyMessage({ replyToken: token, messages: [msg] }); }
 async function replyText(token, text) { return client.replyMessage({ replyToken: token, messages: [{ type: 'text', text }] }); }
 
