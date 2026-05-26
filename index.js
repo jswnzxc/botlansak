@@ -78,48 +78,35 @@ app.get('/debug', async (_, res) => {
 
 // ===== Event Handler หลัก =====
 async function handleEvent(event) {
+  const userId  = event.source?.userId;
+  const groupId = event.source?.groupId;
+  const roomId  = event.source?.roomId;
+  const sourceId = groupId || roomId || userId; // เลือก ID สำหรับส่งกลับ (Group > Room > User)
+
+  // ── เมื่อบอตถูกดึงเข้ากลุ่ม ──
+  if (event.type === 'join') {
+    console.log(`🏠 Joined ${event.source.type}: ${sourceId}`);
+    return client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [{
+        type: 'text',
+        text: '👮 สวัสดีครับทุกท่าน! ผมบอตผู้ช่วยสายตรวจภูธรลานสัก พร้อมให้บริการในกลุ่มนี้แล้วครับ\n\n📌 พิมพ์ "เมนู" เพื่อดูสิ่งที่ผมทำได้ครับ'
+      }]
+    });
+  }
 
   // ── ติดตาม Follow/Unfollow Event ──
   if (event.type === 'follow') {
-    const userId = event.source?.userId;
     if (userId) {
-      try {
-        const profile = await client.getProfile(userId);
-        const isNew = trackUser(userId, profile.displayName);
-        console.log(`👋 Follow: ${profile.displayName} (${userId}) ${isNew ? '[ใหม่]' : '[กลับมา]'}`);
-        await client.pushMessage({
-          to: userId,
-          messages: [{
-            type: 'text',
-            text: `👋 สวัสดีครับ ${profile.displayName}!\nขอบคุณที่ติดตาม Bot สายตรวจภูธรลานสัก\n\nพิมพ์ "สวัสดี" หรือ "เมนู" เพื่อดูคำสั่งทั้งหมดครับ 🙏`,
-          }],
-        });
-      } catch (err) {
-        console.error('Follow event error:', err.message);
-      }
-    }
-    return;
-  }
-
-  if (event.type === 'unfollow') {
-    const userId = event.source?.userId;
-    if (userId) {
-      const { removeFollower } = require('./broadcast');
-      removeFollower(userId);
-      console.log(`👋 Unfollow: ${userId}`);
-    }
-    return;
-  }
-
+...
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
   const userText   = event.message.text.trim();
   const replyToken = event.replyToken;
-  const userId     = event.source?.userId;
 
-  console.log(`📩 ได้รับ: "${userText}" จาก ${userId}`);
+  console.log(`📩 [${event.source.type}] ได้รับ: "${userText}" จาก ${userId || 'unknown'}`);
 
-  // ── บันทึก userId ทุกครั้งที่ส่งข้อความ ──
+  // ── บันทึกข้อมูลผู้ใช้ (ถ้ามี userId) ──
   if (userId) {
     try {
       const profile = await client.getProfile(userId);
