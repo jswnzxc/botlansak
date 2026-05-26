@@ -219,15 +219,18 @@ async function handleEvent(event) {
     const searchQuery       = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s+/, '').trim();
     
     let results = await searchByName(searchQuery);
-    
-    // [แก้ไข] กรองผลลัพธ์ตามหมวดหมู่ที่ผู้ใช้เลือก
+    // [แก้ไข] กรองผลลัพธ์ตามหมวดหมู่ที่ผู้ใช้เลือก (เข้มงวด)
     if (isPersonnelSearch) {
       results = results.filter(p => p.sheetType === 'personnel');
     } else if (isLeaderSearch) {
       results = results.filter(p => p.sheetType === 'leader');
+    } else if (userText.startsWith('ค้นหา')) {
+      // ถ้าพิมพ์ "ค้นหา" นำหน้า ให้แสดงแค่หน้า "ผู้ต้องหา" (suspect) เท่านั้น
+      results = results.filter(p => p.sheetType === 'suspect');
     }
-    
+
     if (results.length > 0) {
+      // ... แสดงผล ...
       if (results.length === 1) {
         const p = results[0];
         const card = p.sheetType === 'personnel' ? buildPersonnelCardFlex(p) : p.sheetType === 'leader' ? buildLeaderCardFlex(p) : buildResultFlex(p).contents;
