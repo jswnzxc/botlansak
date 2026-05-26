@@ -81,25 +81,31 @@ async function handleEvent(event) {
     return;
   }
 
-  if (event.type !== 'message' || event.message.type !== 'text') return;
+  // รองรับทั้ง Message และ Postback (สำหรับปุ่มกดบางประเภท)
+  if (event.type !== 'message' && event.type !== 'postback') return;
 
-  const userText   = event.message.text.trim();
+  // ดึงข้อความจาก event
+  let userText = '';
+  if (event.type === 'message' && event.message.type === 'text') {
+    userText = event.message.text.trim();
+  } else if (event.type === 'postback') {
+    userText = event.postback.data.trim();
+  }
+
+  if (!userText) return;
+
   const replyToken = event.replyToken;
   const isGroup    = event.source.type === 'group' || event.source.type === 'room';
 
   console.log(`📩 [${event.source.type}] From: ${userId || 'unknown'} Text: "${userText}"`);
 
   // ─────────────────────────────────────────────────────────
-  // ตรวจสอบความเหมาะสมในการตอบ (สำหรับในกลุ่ม)
+  // ตรวจสอบความเหมาะสมในการตอบ (เฉพาะในกลุ่ม)
   // ─────────────────────────────────────────────────────────
   if (isGroup) {
-    const isAdminCmd = isAdminCommand(userText);
-    const isPhone = /^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''));
-    const isMentionBot = userText.toLowerCase().includes('บอท') || userText.toLowerCase().includes('bot');
-    const isExplicitSearch = userText.startsWith('ค้นหา') || userText.startsWith('ตรวจสอบ');
-    const isMenuTrigger = ['สวัสดี','เมนู','help','เริ่ม'].includes(userText.toLowerCase());
-
-    if (!isAdminCmd && !isPhone && !isMentionBot && !isExplicitSearch && !isMenuTrigger) {
+    const isKeyword = ['ทำเนียบ', 'ตำรวจ', 'ผู้นำ', 'เว็บไซต์', 'สถานี', 'สวัสดี', 'เมนู', 'ค้นหา', 'ตรวจสอบ', 'บอท', 'bot', '/', '0', 'บุคลากร'].some(k => userText.includes(k));
+    // ถ้าไม่มี Keyword สำคัญเลย และไม่ใช่การพิมพ์ชื่อค้นหาตรงๆ (ที่ยาวพอ) ให้เงียบไว้
+    if (!isKeyword && userText.length < 2) {
       return; 
     }
   }
@@ -164,10 +170,9 @@ async function handleEvent(event) {
   }
 
   // ─────────────────────────────────────────────────────────
-  // [2] คำสั่งทั่วไป / ค้นหา (ลำดับความสำคัญ: คำสั่งเฉพาะ > ทักทาย > ค้นหา)
+  // [2] คำสั่งทั่วไป / ค้นหา
   // ─────────────────────────────────────────────────────────
   
-  // 2.1 เมนูเฉพาะทาง (แบบเป๊ะๆ หรือคำหลัก)
   if (userText.includes('ทำเนียบบุคลากร') || userText === 'ตำรวจ') {
     return replyMessage(replyToken, buildPersonnelMenuFlex());
   }
@@ -176,28 +181,25 @@ async function handleEvent(event) {
     return replyMessage(replyToken, buildVillageLeaderMenuFlex());
   }
 
-  // 2.2 คำสั่งทักทาย / เมนูหลัก
   const greetingWords = ['สวัสดี','hello','hi','หวัดดี','เริ่ม','เมนู','help','วิธีใช้'];
   if (greetingWords.some(w => userText.toLowerCase().includes(w))) {
     return replyMessage(replyToken, buildWelcomeFlex());
   }
 
-  // 2.3 บริการอื่นๆ
   if (userText.includes('เว็บไซต์')) return replyMessage(replyToken, buildWebsiteFlex());
   if (userText.includes('ข้อมูลสถานี')) return replyMessage(replyToken, buildStationFlex());
   if (userText.includes('แจ้งเหตุ')) return replyText(replyToken, '🚨 แจ้งเหตุฉุกเฉิน โทร 191 หรือแอป Police I Lert U');
   if (userText.includes('ติดต่อ')) return replyText(replyToken, '📞 ฉุกเฉิน: 191\n📱 สายตรวจ: 056-559-xxx');
 
-  // 2.4 ค้นหาด้วยเบอร์โทร
+  // ค้นหาเบอร์โทร
   if (/^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''))) {
     const results = await searchByPhone(userText);
     if (results.length === 0) return replyMessage(replyToken, buildNotFoundFlex(userText));
     return replyMessage(replyToken, buildCarouselFlex(results, userText));
   }
 
-  // 2.5 ระบบค้นหา (ชื่อบุคคล, ฝ่ายตำรวจ, ตำบลผู้นำ)
+  // ระบบค้นหา
   if (userText.length >= 2) {
-    // กรณีเป็นปุ่มกดค้นหาชื่อ
     if (userText === 'ค้นหาชื่อ') {
       return replyText(replyToken, '🔍 พิมพ์ชื่อ-นามสกุล หรือยศที่ต้องการค้นหาได้เลยครับ');
     }
@@ -214,7 +216,7 @@ async function handleEvent(event) {
       return replyMessage(replyToken, buildCarouselFlex(results, userText));
     }
 
-    // ถ้าไม่เจอชื่อ ให้ AI ช่วยตอบ
+    // AI Fallback
     if (process.env.GEMINI_API_KEY) {
       try {
         const suspectsData  = caches['ผู้ต้องหา']?.data || [];
@@ -226,7 +228,7 @@ async function handleEvent(event) {
         if (aiResponse) {
           return await client.pushMessage({ to: sourceId, messages: [{ type: 'text', text: aiResponse }] });
         }
-      } catch (e) { console.error('AI Fallback error:', e); }
+      } catch (e) { console.error('AI error:', e); }
     }
     return replyMessage(replyToken, buildNotFoundFlex(userText));
   }
