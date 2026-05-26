@@ -151,7 +151,7 @@ async function handleEvent(event) {
   // [2] คำสั่งทั่วไป / ค้นหา (ลำดับความสำคัญ: คำสั่งเฉพาะ > ทักทาย > ค้นหา)
   // ─────────────────────────────────────────────────────────
   
-  // 2.1 เมนูเฉพาะทาง (ตรวจสอบก่อนทักทาย)
+  // 2.1 เมนูเฉพาะทาง (แบบเป๊ะๆ)
   if (userText === 'ทำเนียบบุคลากร' || userText === 'ตำรวจ') {
     return replyMessage(replyToken, buildPersonnelMenuFlex());
   }
@@ -160,7 +160,7 @@ async function handleEvent(event) {
     return replyMessage(replyToken, buildVillageLeaderMenuFlex());
   }
 
-  // 2.2 คำสั่งทักทาย / เมนูหลัก (ใช้ matches แบบเป๊ะขึ้น)
+  // 2.2 คำสั่งทักทาย / เมนูหลัก (แบบเป๊ะๆ)
   const greetingWords = ['สวัสดี','hello','hi','หวัดดี','เริ่ม','เมนู','help','วิธีใช้'];
   if (greetingWords.includes(userText.toLowerCase())) {
     return replyMessage(replyToken, buildWelcomeFlex());
@@ -170,18 +170,19 @@ async function handleEvent(event) {
   if (userText === 'เว็บไซต์') return replyMessage(replyToken, buildWebsiteFlex());
   if (userText === 'ข้อมูลสถานี') return replyMessage(replyToken, buildStationFlex());
 
-  // 2.4 ค้นหาด้วยเบอร์โทร (ตรวจรูปแบบตัวเลข)
+  // 2.4 ค้นหาด้วยเบอร์โทร
   if (isPhoneNumber(userText)) {
     const results = await searchByPhone(userText);
     if (results.length === 0) return replyMessage(replyToken, buildNotFoundFlex(userText));
     return replyMessage(replyToken, buildCarouselFlex(results, userText));
   }
 
-  // 2.5 ค้นหาด้วยชื่อ (ระบบเดิม + AI Fallback)
+  // 2.5 ระบบค้นหา (ชื่อบุคคล, ฝ่ายตำรวจ, ตำบลผู้นำ)
   if (userText.length >= 2) {
-    // กรณีเป็นคำสั่งย่อย (เช่น "บุคลากร งานสืบสวน" หรือ "ผู้นำตำบล ลานสัก") 
-    // ให้ข้ามไปใช้ระบบค้นหาปกติ
-    const results = await searchByName(userText);
+    // เตรียมข้อมูลสำหรับค้นหา (ตัดคำว่า บุคลากร/ผู้นำตำบล ออกถ้ามี เพื่อความแม่นยำ)
+    const searchQuery = userText.replace(/^(บุคลากร|ผู้นำตำบล)\s+/, '').trim();
+    const results = await searchByName(searchQuery);
+    
     if (results.length > 0) {
       if (results.length === 1) {
         const p = results[0];
@@ -191,27 +192,21 @@ async function handleEvent(event) {
       return replyMessage(replyToken, buildCarouselFlex(results, userText));
     }
 
-    // ถ้าไม่เจอชื่อ ให้ AI ช่วยตอบ
+    // 2.6 AI Fallback (ถ้าหาไม่เจอจริงๆ)
     if (process.env.GEMINI_API_KEY) {
       try {
-        // ดึงข้อมูลสรุป (เช็คความปลอดภัยของข้อมูลก่อนส่ง)
         const suspectsData  = caches['ผู้ต้องหา']?.data || [];
         const personnelData = caches['บุคลากร สภ.']?.data || [];
         const context = `รายชื่อตัวอย่าง: ${suspectsData.slice(0,5).map(p=>p.firstName).join(',')}\nรายชื่อตำรวจ: ${personnelData.slice(0,5).map(p=>p.firstName).join(',')}`;
         
         await replyText(replyToken, '🤖 กำลังประมวลผลคำตอบจากฐานข้อมูล...');
         const aiResponse = await askAI(userText, context);
-        
         if (aiResponse) {
-          return await client.pushMessage({ 
-            to: sourceId, 
-            messages: [{ type: 'text', text: aiResponse }] 
-          });
+          return await client.pushMessage({ to: sourceId, messages: [{ type: 'text', text: aiResponse }] });
         }
-      } catch (aiErr) {
-        console.error('AI Processing Error:', aiErr);
-      }
+      } catch (e) { console.error('AI Fallback error:', e); }
     }
+
     return replyMessage(replyToken, buildNotFoundFlex(userText));
   }
 }
