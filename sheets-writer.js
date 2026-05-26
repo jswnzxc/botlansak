@@ -1,27 +1,11 @@
-// ============================================================
-//  sheets-writer.js  — เขียนข้อมูลลง Google Sheets ด้วย Service Account
-//  ใช้สำหรับ Admin เพิ่มบุคคลเฝ้าระวังผ่าน LINE
-// ============================================================
-//
-//  วิธีตั้งค่า Google Service Account:
-//  1. ไปที่ https://console.cloud.google.com
-//  2. สร้าง Project ใหม่ (หรือใช้ project เดิม)
-//  3. Enable "Google Sheets API"
-//  4. IAM & Admin → Service Accounts → Create Service Account
-//  5. กด "Create Key" → เลือก JSON → ดาวน์โหลดไฟล์ credentials.json
-//  6. เปิด Google Sheets → Share → ใส่ email ของ Service Account → Editor
-//  7. ใส่ค่าจาก credentials.json ลงใน .env ตามด้านล่าง
-//
-// ============================================================
-
 require('dotenv').config();
 const { google } = require('googleapis');
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
 // Sheet ที่จะเขียน (ตรงกับ tab ใน Google Sheets)
-// เปลี่ยนให้ตรงกับ tab เดิมที่คุณใช้งานอยู่
 const SHEET_WATCHLIST = 'ผู้ต้องหา';
+const SHEET_USERS     = 'รายชื่อผู้ใช้'; // แผ่นงานใหม่สำหรับเก็บ ID คนใช้บอท
 
 /**
  * สร้าง Google Sheets client ด้วย Service Account
@@ -72,20 +56,15 @@ function getSheetsClient() {
 
 /**
  * เพิ่มบุคคลเฝ้าระวังแถวใหม่ลง Google Sheets
- * @param {Object} person - ข้อมูลบุคคล
  */
 async function appendWatchlistPerson(person) {
   const sheets = getSheetsClient();
-
-  // Format วันที่ไทย
   const now = new Date();
   const dateStr = now.toLocaleDateString('th-TH', {
     year: 'numeric', month: 'long', day: 'numeric',
     timeZone: 'Asia/Bangkok',
   });
 
-  // ลำดับคอลัมน์ตาม Sheet จริง:
-  // A=ยศ  B=ชื่อ  C=นามสกุล  D=คดี  E=สถานะ  F=พื้นที่  G=หมายเลขคดี  H=วันที่บันทึก  I=บันทึกโดย
   const row = [
     (person.rank      || '').trim(),
     (person.firstName || '').trim(),
@@ -100,7 +79,7 @@ async function appendWatchlistPerson(person) {
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_WATCHLIST}!A3:I`, // เริ่มเขียนต่อท้ายโดยอ้างอิงจากแถวที่ 3 เป็นต้นไป
+    range: `${SHEET_WATCHLIST}!A3:I`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [row] },
@@ -110,32 +89,13 @@ async function appendWatchlistPerson(person) {
 }
 
 /**
- * ตรวจสอบว่า Service Account ตั้งค่าครบหรือยัง
- */
-function isConfigured() {
-  const config = {
-    GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
-    GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
-    SPREADSHEET_ID: !!process.env.SPREADSHEET_ID,
-    GOOGLE_PROJECT_ID: !!process.env.GOOGLE_PROJECT_ID
-  };
-  
-  if (!config.GOOGLE_CLIENT_EMAIL || !config.GOOGLE_PRIVATE_KEY || !config.SPREADSHEET_ID) {
-    console.log('⚠️ [Sheets Config Missing]:', config);
-  }
-  
-  return config.GOOGLE_CLIENT_EMAIL && config.GOOGLE_PRIVATE_KEY && config.SPREADSHEET_ID;
-}
-
-/**
  * ค้นหาแถวของบุคคลตามชื่อ-นามสกุล
- * @returns {number|null} row index (1-based)
  */
 async function findRowIndex(firstName, lastName) {
   const sheets = getSheetsClient();
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_WATCHLIST}!B:C`, // ค้นในคอลัมน์ ชื่อ (B) และ นามสกุล (C)
+    range: `${SHEET_WATCHLIST}!B:C`,
   });
 
   const rows = response.data.values;
@@ -145,22 +105,20 @@ async function findRowIndex(firstName, lastName) {
     const rowFirstName = (rows[i][0] || '').trim();
     const rowLastName  = (rows[i][1] || '').trim();
     if (rowFirstName === firstName.trim() && rowLastName === lastName.trim()) {
-      return i + 1; // คืนค่า row index (1-based)
+      return i + 1;
     }
   }
   return null;
 }
 
 /**
- * ลบแถวข้อมูลตามชื่อ-นามสกุล
+ * ลบแถวข้อมูล
  */
 async function deletePerson(firstName, lastName) {
   const sheets = getSheetsClient();
   const rowIndex = await findRowIndex(firstName, lastName);
-
   if (!rowIndex) return { success: false, message: 'ไม่พบรายชื่อนี้ในระบบ' };
 
-  // ดึงข้อมูล Sheet ID (ตัวเลข)
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const sheet = spreadsheet.data.sheets.find(s => s.properties.title === SHEET_WATCHLIST);
   const sheetId = sheet.properties.sheetId;
@@ -168,45 +126,27 @@ async function deletePerson(firstName, lastName) {
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
     requestBody: {
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: sheetId,
-              dimension: 'ROWS',
-              startIndex: rowIndex - 1,
-              endIndex: rowIndex,
-            },
-          },
-        },
-      ],
+      requests: [{
+        deleteDimension: {
+          range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex }
+        }
+      }],
     },
   });
-
   return { success: true, rowIndex };
 }
 
 /**
  * แก้ไขข้อมูลบางฟิลด์
- * @param {string} field - ชื่อฟิลด์ (rank, crime, status, area, caseNo)
  */
 async function updatePersonField(firstName, lastName, field, newValue) {
   const sheets = getSheetsClient();
   const rowIndex = await findRowIndex(firstName, lastName);
-
   if (!rowIndex) return { success: false, message: 'ไม่พบรายชื่อนี้ในระบบ' };
 
-  // แผนผังคอลัมน์: A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7
-  const colMap = {
-    'ยศ': 'A', 'rank': 'A',
-    'คดี': 'D', 'crime': 'D',
-    'สถานะ': 'E', 'status': 'E',
-    'พื้นที่': 'F', 'area': 'F',
-    'หมายเลขคดี': 'G', 'caseNo': 'G'
-  };
-
+  const colMap = { 'ยศ': 'A', 'rank': 'A', 'คดี': 'D', 'crime': 'D', 'สถานะ': 'E', 'status': 'E', 'พื้นที่': 'F', 'area': 'F', 'หมายเลขคดี': 'G', 'caseNo': 'G' };
   const colLetter = colMap[field];
-  if (!colLetter) return { success: false, message: 'ระบุชื่อฟิลด์ไม่ถูกต้อง (ยศ, คดี, สถานะ, พื้นที่, หมายเลขคดี)' };
+  if (!colLetter) return { success: false, message: 'ระบุชื่อฟิลด์ไม่ถูกต้อง' };
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
@@ -214,14 +154,67 @@ async function updatePersonField(firstName, lastName, field, newValue) {
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[newValue]] },
   });
-
   return { success: true, rowIndex };
 }
 
+/**
+ * บันทึกผู้ใช้ลง Google Sheets เพื่อไม่ให้ข้อมูลหายเมื่อ Restart
+ */
+async function trackUserInSheet(userId, displayName) {
+  const sheets = getSheetsClient();
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!A:A`,
+    });
+    const existingIds = (response.data.values || []).map(row => row[0]);
+    if (existingIds.includes(userId)) return false;
+
+    const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+    const row = [userId, displayName || '', now];
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!A:C`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] },
+    });
+    return true;
+  } catch (e) {
+    console.error('Error tracking user:', e.message);
+    return false;
+  }
+}
+
+/**
+ * โหลดรายชื่อผู้ใช้ทั้งหมดจาก Google Sheets
+ */
+async function loadFollowersFromSheet() {
+  const sheets = getSheetsClient();
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!A:B`,
+    });
+    const rows = response.data.values || [];
+    return rows.slice(1).map(row => ({ userId: row[0], displayName: row[1] || '' }));
+  } catch (err) {
+    console.error('Error loading followers:', err.message);
+    return [];
+  }
+}
+
+function isConfigured() {
+  const config = {
+    GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+    GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+    SPREADSHEET_ID: !!process.env.SPREADSHEET_ID,
+    GOOGLE_PROJECT_ID: !!process.env.GOOGLE_PROJECT_ID
+  };
+  return config.GOOGLE_CLIENT_EMAIL && config.GOOGLE_PRIVATE_KEY && config.SPREADSHEET_ID;
+}
+
 module.exports = { 
-  appendWatchlistPerson, 
-  deletePerson, 
-  updatePersonField, 
-  isConfigured, 
-  SHEET_WATCHLIST 
+  appendWatchlistPerson, deletePerson, updatePersonField, 
+  trackUserInSheet, loadFollowersFromSheet, isConfigured, SHEET_WATCHLIST 
 };

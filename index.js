@@ -138,9 +138,13 @@ async function handleEvent(event) {
     if (userText === '/ล้างcache') { clearCache(); return replyText(replyToken, '🔄 ล้าง Cache เรียบร้อยครับ'); }
     
     if (userText === '/สถิติ' || userText === '/สถานะ') {
-      const [suspects, personnel, leaders] = await Promise.all([fetchAllData(), fetchPersonnel(), fetchLeaders()]);
-      const stats = getStats();
-      const statusText = `📊 ระบบ: ${isSheetConfigured() ? '✅ พร้อม' : '⚠️ ไม่พร้อม'}\n👮 บุคลากร: ${personnel.length}\n🏘️ ผู้นำ: ${leaders.length}\n🔍 ผู้ต้องหา: ${suspects.length}\n👥 ผู้ติดตาม: ${stats.total}`;
+      const [suspects, personnel, leaders, followers] = await Promise.all([
+        fetchAllData(), 
+        fetchPersonnel(), 
+        fetchLeaders(),
+        loadFollowersFromSheet()
+      ]);
+      const statusText = `📊 ระบบ: ${isSheetConfigured() ? '✅ พร้อม' : '⚠️ ไม่พร้อม'}\n👮 บุคลากร: ${personnel.length}\n🏘️ ผู้นำ: ${leaders.length}\n🔍 ผู้ต้องหา: ${suspects.length}\n👥 ผู้ติดตาม: ${followers.length} (ถาวร)`;
       return replyText(replyToken, statusText);
     }
 
