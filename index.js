@@ -207,14 +207,25 @@ async function handleEvent(event) {
     return replyMessage(replyToken, buildCarouselFlex(results, userText));
   }
 
-  // ระบบค้นหา
+  // 2.5 ระบบค้นหา
   if (userText.length >= 2) {
     if (userText === 'ค้นหาชื่อ') {
       return replyText(replyToken, '🔍 พิมพ์ชื่อ-นามสกุล หรือยศที่ต้องการค้นหาได้เลยครับ');
     }
 
-    const searchQuery = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s+/, '').trim();
-    const results = await searchByName(searchQuery);
+    // ตรวจสอบว่าเป็นการค้นหาแบบระบุหมวดหมู่หรือไม่
+    const isPersonnelSearch = userText.startsWith('บุคลากร');
+    const isLeaderSearch    = userText.startsWith('ผู้นำตำบล');
+    const searchQuery       = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s+/, '').trim();
+    
+    let results = await searchByName(searchQuery);
+    
+    // [แก้ไข] กรองผลลัพธ์ตามหมวดหมู่ที่ผู้ใช้เลือก
+    if (isPersonnelSearch) {
+      results = results.filter(p => p.sheetType === 'personnel');
+    } else if (isLeaderSearch) {
+      results = results.filter(p => p.sheetType === 'leader');
+    }
     
     if (results.length > 0) {
       if (results.length === 1) {
