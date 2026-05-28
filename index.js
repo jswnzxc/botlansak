@@ -206,7 +206,7 @@ async function handleEvent(event) {
     return replyMessage(replyToken, buildPersonnelMenuFlex());
   }
   
-  if (userText.includes('ทำเนียบผู้นำตำบล') || userText === 'ผู้นำตำบล') {
+  if (userText.includes('ทำเนียบผู้นำตำบล') || userText === 'ผู้นำตำบล' || userText.includes('ผู้ใหญ่บ้าน')) {
     return replyMessage(replyToken, buildVillageLeaderMenuFlex());
   }
 
