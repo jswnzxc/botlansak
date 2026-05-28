@@ -13,6 +13,7 @@ const {
   buildVillageLeaderMenuFlex, buildLeaderCardFlex, buildLeaderCarouselFlex,
   buildFuelStationFlex,
   buildAllCommandsFlex,
+  buildQuickAddFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -177,6 +178,9 @@ async function handleEvent(event) {
     }
 
     if (userText.startsWith('/เพิ่ม')) {
+      const args = userText.replace('/เพิ่ม', '').trim();
+      if (!args) return replyMessage(replyToken, buildQuickAddFlex());
+
       const person = parseAddCommand(userText, userId);
       if (!person) return replyText(replyToken, '❌ รูปแบบ: /เพิ่ม ยศ ชื่อ นามสกุล | คดี | สถานะ...');
       try {
@@ -233,7 +237,7 @@ async function handleEvent(event) {
   if (/^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''))) {
     const results = await searchByPhone(userText);
     if (results.length === 0) return replyMessage(replyToken, buildNotFoundFlex(userText));
-    return replyMessage(replyToken, buildCarouselFlex(results, userText));
+    return replyMessage(replyToken, buildCarouselFlex(results, userText, isAdmin(userId)));
   }
 
   // 2.5 ระบบค้นหา
@@ -266,10 +270,10 @@ async function handleEvent(event) {
       // ... แสดงผล ...
       if (results.length === 1) {
         const p = results[0];
-        const card = p.sheetType === 'personnel' ? buildPersonnelCardFlex(p) : p.sheetType === 'leader' ? buildLeaderCardFlex(p) : buildResultFlex(p).contents;
+        const card = p.sheetType === 'personnel' ? buildPersonnelCardFlex(p) : p.sheetType === 'leader' ? buildLeaderCardFlex(p) : buildResultFlex(p, isAdmin(userId)).contents;
         return replyMessage(replyToken, { type: 'flex', altText: `พบ: ${p.fullName}`, contents: card });
       }
-      return replyMessage(replyToken, buildCarouselFlex(results, userText));
+      return replyMessage(replyToken, buildCarouselFlex(results, userText, isAdmin(userId)));
     }
 
     return replyMessage(replyToken, buildNotFoundFlex(userText));

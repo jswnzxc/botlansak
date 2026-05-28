@@ -5,8 +5,62 @@
 /**
  * สร้าง Flex Message แสดงผลการค้นหา (พบ)
  */
-function buildResultFlex(suspect) {
+function buildResultFlex(suspect, isAdminUser = false) {
   const statusColor = getStatusColor(suspect.status);
+
+  const footerContents = [
+    {
+      type: 'text',
+      text: 'สถานีตำรวจภูธรลานสัก อ.ลานสัก จ.อุทัยธานี',
+      color: '#aaaaaa',
+      size: 'xs',
+      align: 'center',
+      wrap: true,
+    },
+    {
+      type: 'text',
+      text: 'ข้อมูลนี้เป็นความลับ ห้ามเผยแพร่',
+      color: '#cc4444',
+      size: 'xs',
+      align: 'center',
+      margin: 'sm',
+    },
+  ];
+
+  if (isAdminUser) {
+    footerContents.unshift({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'md',
+      contents: [
+        {
+          type: 'button',
+          style: 'secondary',
+          height: 'sm',
+          color: '#e74c3c',
+          action: {
+            type: 'message',
+            label: 'ลบ',
+            text: `/ลบ ${suspect.firstName} ${suspect.lastName}`,
+          },
+          flex: 1,
+        },
+        {
+          type: 'button',
+          style: 'secondary',
+          height: 'sm',
+          color: '#3498db',
+          action: {
+            type: 'message',
+            label: 'แก้ไข',
+            text: `/แก้ไข ${suspect.firstName} ${suspect.lastName} | [ฟิลด์] | [ค่าใหม่]`,
+          },
+          flex: 2,
+        },
+      ],
+    });
+  }
 
   return {
     type: 'flex',
@@ -122,24 +176,7 @@ function buildResultFlex(suspect) {
         layout: 'vertical',
         backgroundColor: '#f7f8fa',
         paddingAll: '12px',
-        contents: [
-          {
-            type: 'text',
-            text: 'สถานีตำรวจภูธรลานสัก อ.ลานสัก จ.อุทัยธานี',
-            color: '#aaaaaa',
-            size: 'xs',
-            align: 'center',
-            wrap: true,
-          },
-          {
-            type: 'text',
-            text: 'ข้อมูลนี้เป็นความลับ ห้ามเผยแพร่',
-            color: '#cc4444',
-            size: 'xs',
-            align: 'center',
-            margin: 'sm',
-          },
-        ],
+        contents: footerContents,
       },
     },
   };
@@ -148,22 +185,22 @@ function buildResultFlex(suspect) {
 /**
  * เลือก card ที่เหมาะสมตาม sheetType ของข้อมูล
  */
-function buildSmartCard(person) {
+function buildSmartCard(person, isAdminUser = false) {
   if (person.sheetType === 'personnel') return buildPersonnelCardFlex(person);
   if (person.sheetType === 'leader')    return buildLeaderCardFlex(person);
-  return buildResultFlex(person).contents; // suspect (default)
+  return buildResultFlex(person, isAdminUser).contents; // suspect (default)
 }
 
 /**
  * สร้าง Carousel เมื่อพบหลายคน (รองรับทุก sheetType)
  */
-function buildCarouselFlex(results, query) {
+function buildCarouselFlex(results, query, isAdminUser = false) {
   return {
     type: 'flex',
     altText: `พบ ${results.length} รายการสำหรับ "${query}"`,
     contents: {
       type: 'carousel',
-      contents: results.slice(0, 10).map(p => buildSmartCard(p)),
+      contents: results.slice(0, 10).map(p => buildSmartCard(p, isAdminUser)),
     },
   };
 }
@@ -985,6 +1022,88 @@ function buildAllCommandsFlex(isAdminUser) {
   };
 }
 
+function buildQuickAddFlex() {
+  return {
+    type: 'flex',
+    altText: '➕ เพิ่มข้อมูลใหม่',
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#27ae60',
+        paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '➕ เพิ่มข้อมูลผู้ต้องหา/เฝ้าระวัง', color: '#ffffff', weight: 'bold', size: 'sm' },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '16px',
+        spacing: 'md',
+        contents: [
+          {
+            type: 'text',
+            text: 'แตะที่ข้อความด้านล่างเพื่อคัดลอกและแก้ไข:',
+            size: 'xs',
+            color: '#888888',
+            wrap: true,
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#f8f9fa',
+            paddingAll: '12px',
+            cornerRadius: '8px',
+            contents: [
+              {
+                type: 'text',
+                text: '/เพิ่ม ยศ ชื่อ นามสกุล | คดี | สถานะ | พื้นที่ | หมายเลขคดี',
+                size: 'xs',
+                color: '#2c3e50',
+                wrap: true,
+              },
+            ],
+            action: {
+              type: 'message',
+              label: 'Copy Template',
+              text: '/เพิ่ม ยศ ชื่อ นามสกุล | คดี | สถานะ | พื้นที่ | หมายเลขคดี',
+            },
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'xs',
+            contents: [
+              { type: 'text', text: 'ตัวอย่าง:', size: 'xxs', color: '#aaaaaa' },
+              { type: 'text', text: '/เพิ่ม นาย สมชาย ใจดี | ลักทรัพย์ | หมายจับ | ลานสัก | 123/2566', size: 'xxs', color: '#aaaaaa', wrap: true },
+            ],
+          },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'button',
+            style: 'link',
+            height: 'sm',
+            action: {
+              type: 'message',
+              label: 'ดูวิธีเพิ่มอย่างละเอียด',
+              text: '/adminhelp',
+            },
+          },
+        ],
+      },
+    },
+  };
+}
+
 module.exports = {
   buildResultFlex,
   buildCarouselFlex,
@@ -1000,4 +1119,5 @@ module.exports = {
   buildLeaderCarouselFlex,
   buildFuelStationFlex,
   buildAllCommandsFlex,
+  buildQuickAddFlex,
 };
