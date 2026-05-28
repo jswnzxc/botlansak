@@ -882,6 +882,109 @@ function buildFuelStationFlex() {
   };
 }
 
+function buildAllCommandsFlex(isAdminUser) {
+  const userCommands = [
+    { title: '🔍 ค้นหาชื่อ', desc: 'พิมพ์ ชื่อ-นามสกุล เพื่อค้นหา' },
+    { title: '📞 ค้นหาเบอร์', desc: 'พิมพ์ เบอร์โทรศัพท์ 10 หลัก' },
+    { title: '👮 ตำรวจ', desc: 'ดูทำเนียบบุคลากร สภ.ลานสัก' },
+    { title: '🏘️ ผู้นำตำบล', desc: 'ดูทำเนียบผู้นำตำบล' },
+    { title: '⛽ ปั๊มน้ำมัน', desc: '/เบอร์ปั๊ม เพื่อดูเบอร์โทร' },
+    { title: '🌐 เว็บไซต์', desc: 'ดูลิงก์เว็บไซต์ที่เกี่ยวข้อง' },
+  ];
+
+  const adminCommands = [
+    { title: '➕ เพิ่มข้อมูล', desc: '/เพิ่ม ยศ ชื่อ นามสกุล | คดี | ...' },
+    { title: '✏️ แก้ไขข้อมูล', desc: '/แก้ไข ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่' },
+    { title: '❌ ลบข้อมูล', desc: '/ลบ ชื่อ นามสกุล' },
+    { title: '📢 Broadcast', desc: '/broadcast [ข้อความ]' },
+    { title: '🔄 ล้าง Cache', desc: '/ล้างcache' },
+    { title: '📊 สถิติระบบ', desc: '/สถิติ หรือ /สถานะ' },
+  ];
+
+  const contents = [
+    {
+      type: 'text',
+      text: '📌 คำสั่งที่ใช้งานได้',
+      weight: 'bold',
+      size: 'md',
+      color: '#1a3a6e',
+    },
+    { type: 'separator', margin: 'md' },
+    {
+      type: 'text',
+      text: '👤 สำหรับผู้ใช้งานทั่วไป',
+      weight: 'bold',
+      size: 'sm',
+      margin: 'md',
+      color: '#2c3e50',
+    },
+  ];
+
+  userCommands.forEach(cmd => {
+    contents.push({
+      type: 'box',
+      layout: 'horizontal',
+      margin: 'sm',
+      contents: [
+        { type: 'text', text: cmd.title, size: 'xs', weight: 'bold', color: '#27ae60', flex: 2 },
+        { type: 'text', text: cmd.desc, size: 'xs', color: '#7f8c8d', flex: 3, wrap: true },
+      ],
+    });
+  });
+
+  if (isAdminUser) {
+    contents.push({ type: 'separator', margin: 'lg' });
+    contents.push({
+      type: 'text',
+      text: '🔐 สำหรับ Admin',
+      weight: 'bold',
+      size: 'sm',
+      margin: 'md',
+      color: '#c0392b',
+    });
+
+    adminCommands.forEach(cmd => {
+      contents.push({
+        type: 'box',
+        layout: 'horizontal',
+        margin: 'sm',
+        contents: [
+          { type: 'text', text: cmd.title, size: 'xs', weight: 'bold', color: '#e67e22', flex: 2 },
+          { type: 'text', text: cmd.desc, size: 'xs', color: '#7f8c8d', flex: 3, wrap: true },
+        ],
+      });
+    });
+  }
+
+  return {
+    type: 'flex',
+    altText: '📋 รายการคำสั่งทั้งหมด',
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: contents,
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: 'พิมพ์คำสั่งตามที่ระบุเพื่อใช้งาน',
+            size: 'xxs',
+            color: '#aaaaaa',
+            align: 'center',
+          },
+        ],
+      },
+    },
+  };
+}
+
 module.exports = {
   buildResultFlex,
   buildCarouselFlex,
@@ -896,4 +999,5 @@ module.exports = {
   buildLeaderCardFlex,
   buildLeaderCarouselFlex,
   buildFuelStationFlex,
+  buildAllCommandsFlex,
 };

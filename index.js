@@ -12,6 +12,7 @@ const {
   buildWebsiteFlex, buildPersonnelMenuFlex, buildPersonnelCardFlex, buildPersonnelCarouselFlex,
   buildVillageLeaderMenuFlex, buildLeaderCardFlex, buildLeaderCarouselFlex,
   buildFuelStationFlex,
+  buildAllCommandsFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -205,6 +206,11 @@ async function handleEvent(event) {
   if (userText.includes('ข้อมูลสถานี')) return replyMessage(replyToken, buildStationFlex());
   if (userText.includes('คำนวณปริมาณน้ำมัน')) return replyText(replyToken, '⛽ คำนวณปริมาณน้ำมัน 5 ปั๊มกรุณาส่งข้อมูลมาให้เพื่อคำนวณ');
   
+  // คำสั่งทั้งหมด
+  if (userText === '/คำสั่ง') {
+    return replyMessage(replyToken, buildAllCommandsFlex(isAdmin(userId)));
+  }
+
   // เบอร์โทรศัพท์ปั๊มน้ำมัน
   const fuelKeywords = ['/เบอร์โทรน้ำมัน', '/เบอร์ปั๊ม', '/เบอร์น้ำมัน'];
   if (fuelKeywords.some(k => userText.startsWith(k))) {
