@@ -1,24 +1,28 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// ตั้งค่า Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 /**
  * ฟังก์ชันตอบคำถามด้วย AI โดยใช้ข้อมูลจาก Sheets เป็นบริบท
+ * ปรับปรุง: ใช้เวอร์ชัน v1 (Stable) เพื่อป้องกัน Error 404 ใน v1beta
  */
 async function askAI(userQuestion, sheetContext) {
   if (!process.env.GEMINI_API_KEY) return "⚠️ ยังไม่ได้ตั้งค่า GEMINI_API_KEY ในระบบครับ";
 
-  // รายชื่อโมเดลที่ต้องการลองใช้ (ตามลำดับความเหมาะสม)
-  const modelNames = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+  // ใช้ API เวอร์ชัน 1 (Stable) แทน v1beta
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  
+  // รายชื่อโมเดลที่ต้องการลองใช้ (เน้นตัวที่เสถียร)
+  const modelNames = ['gemini-1.5-flash', 'gemini-1.0-pro'];
   
   let lastError = null;
 
   for (const modelName of modelNames) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
+      // ระบุเวอร์ชัน API เป็น v1
+      const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1' });
+      
       const systemPrompt = `
         คุณคือ "ผู้ช่วยอัจฉริยะ สายตรวจภูธรลานสัก"
+        ทำหน้าที่ตอบคำถามจากข้อมูลที่ได้รับเท่านั้น หากไม่มีในข้อมูลให้บอกว่าไม่พบ
         ข้อมูลในระบบ:
         ${sheetContext}
       `;
@@ -32,17 +36,15 @@ async function askAI(userQuestion, sheetContext) {
       console.error(`AI Error (${modelName}):`, err.message);
       lastError = err.message;
       
-      // ถ้าเป็น 404 (ไม่พบโมเดล) ให้ลองโมเดลถัดไป
+      // ถ้าเป็น 404 ให้ลองตัวถัดไป
       if (err.message.includes('404') || err.message.includes('not found')) {
         continue;
       }
-      
-      // ถ้าเป็น Error อื่นๆ เช่น API Key ผิด ให้หยุดและแจ้งเตือนเลย
       break;
     }
   }
 
-  return `❌ AI ขัดข้อง: ${lastError || "ไม่สามารถติดต่อ AI ได้"}\nกรุณาตรวจสอบการตั้งค่า API Key ใน Google AI Studio`;
+  return `❌ AI ขัดข้อง (Stable V1): ${lastError}\nกรุณาตรวจสอบสิทธิ์การใช้งานที่ Google AI Studio`;
 }
 
 module.exports = { askAI };
