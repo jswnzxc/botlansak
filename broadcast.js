@@ -83,9 +83,18 @@ function buildBroadcastResultFlex(result, previewText) {
   };
 }
 
+/**
+ * ลบ userId เมื่อมีการ Unfollow (Optional: สำหรับจัดการ Database ภายหลัง)
+ */
+function removeFollower(userId) {
+  console.log(`👋 User ${userId} unfollowed.`);
+  // ในเวอร์ชันนี้เราเน้นเก็บ log ส่วนการลบออกจาก Sheets สามารถเพิ่ม batchUpdate ได้ถ้าต้องการ
+}
+
 module.exports = {
   trackUser,
   broadcastToAll,
+  removeFollower,
   getStats,
   buildBroadcastResultFlex,
 };

@@ -22,6 +22,7 @@ const {
 } = require('./admin');
 const { 
   appendWatchlistPerson, deletePerson, updatePersonField,
+  loadFollowersFromSheet,
   isConfigured: isSheetConfigured 
 } = require('./sheets-writer');
 const { trackUser, broadcastToAll, getStats, buildBroadcastResultFlex } = require('./broadcast');

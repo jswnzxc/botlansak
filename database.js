@@ -233,4 +233,4 @@ async function searchByPhone(query) {
   ];
 }
 
-module.exports = { searchByName, searchByPhone, fetchAllData, fetchPersonnel, fetchLeaders, clearCache };
+module.exports = { searchByName, searchByPhone, fetchAllData, fetchPersonnel, fetchLeaders, clearCache, caches };
