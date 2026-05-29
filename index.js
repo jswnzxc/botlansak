@@ -214,27 +214,50 @@ async function handleEvent(event) {
     const rawData = userText.replace('/สรุปข้อมูลประวัติ', '').replace('สรุปข้อมูลประวัติ', '').trim();
     if (!rawData) return replyText(replyToken, '📝 กรุณาส่งข้อมูลที่ต้องการสรุปมาด้วยครับ\nตัวอย่าง: /สรุปข้อมูลประวัติ [ข้อความจากบัตร]');
 
+    // ส่งข้อความตอบรับก่อน (เพราะ AI อาจใช้เวลานาน)
     await replyText(replyToken, '⏳ กำลังวิเคราะห์และสรุปข้อมูลด้วย AI สักครู่ครับ...');
 
     try {
       const summary = await summarizeHistory(rawData);
-      if (!summary) return replyText(replyToken, '❌ AI ไม่สามารถสรุปข้อมูลได้ในขณะนี้');
+      if (!summary) {
+        return client.pushMessage({
+          to: sourceId,
+          messages: [{ type: 'text', text: '❌ AI ไม่สามารถสรุปข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' }]
+        });
+      }
 
       // ดึงชื่อผู้ใช้
       let userName = 'ไม่ระบุชื่อ';
       try {
         const profile = await client.getProfile(userId);
         userName = profile.displayName;
-      } catch (err) { console.error('Get profile error:', err); }
+      } catch (err) { console.error('Get profile error:', err.message); }
 
       // บันทึกลง Google Sheets
-      await appendHistorySummary(summary, userName);
+      try {
+        await appendHistorySummary(summary, userName);
+      } catch (sheetErr) {
+        console.error('Sheet Append Error:', sheetErr.message);
+        return client.pushMessage({
+          to: sourceId,
+          messages: [{ type: 'text', text: `⚠️ สรุปข้อมูลสำเร็จ แต่บันทึกลง Sheet ล้มเหลว: ${sheetErr.message}` }]
+        });
+      }
 
-      const responseText = `✅ สรุปข้อมูลเรียบร้อยและบันทึกลงระบบแล้วครับ\n\n📄 ประเภท: ${summary.type}\n👤 ข้อมูล: ${summary.data}\n🏠 ที่อยู่: ${summary.address}\n🎯 ความแม่นยำ: ${summary.accuracy}\n⚖️ สถานะ/คดี: ${summary.status}`;
-      return replyText(replyToken, responseText);
+      const responseText = `✅ สรุปข้อมูลเรียบร้อยแล้วครับ\n\n📄 ประเภท: ${summary.type}\n👤 ข้อมูล: ${summary.data}\n🏠 ที่อยู่: ${summary.address}\n🎯 ความแม่นยำ: ${summary.accuracy}\n⚖️ สถานะ/คดี: ${summary.status}`;
+      
+      return client.pushMessage({
+        to: sourceId,
+        messages: [{ type: 'text', text: responseText }]
+      });
+
     } catch (err) {
       console.error('Summary command error:', err);
-      return replyText(replyToken, '❌ เกิดข้อผิดพลาดในการบันทึกข้อมูลครับ');
+      // ใช้ pushMessage เพราะ replyToken น่าจะถูกใช้ไปแล้วหรือหมดอายุ
+      return client.pushMessage({
+        to: sourceId,
+        messages: [{ type: 'text', text: '❌ เกิดข้อผิดพลาดขัดข้องในระบบ AI ครับ' }]
+      });
     }
   }
 
