@@ -53,79 +53,91 @@ async function askAI(userQuestion, sheetContext) {
 async function analyzeImage(imageBuffer, mimeType) {
   if (!process.env.GEMINI_API_KEY) return { error: 'Missing API Key' };
 
-  try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // ใช้ v1beta เพราะ v1 (Stable) อาจจะยังไม่รองรับ 1.5-flash สำหรับ image analysis ในบางภูมิภาค
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' });
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  // รายชื่อโมเดลที่ต้องการลองใช้ (สำหรับ Image Analysis)
+  const modelNames = [
+    'gemini-1.5-flash', 
+    'gemini-1.5-flash-latest', 
+    'gemini-1.5-pro', 
+    'gemini-1.5-flash-001'
+  ];
 
-    const prompt = `
-      คุณคือผู้เชี่ยวชาญด้าน OCR ของตำรวจไทย หน้าที่ของคุณคือสกัดข้อมูลจากรูปภาพที่ส่งมาอย่างแม่นยำที่สุด:
+  let lastError = null;
+
+  for (const modelName of modelNames) {
+    try {
+      console.log(`Trying OCR with model: ${modelName} (v1beta)`);
+      const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1beta' });
+
+      const prompt = `
+        คุณคือผู้เชี่ยวชาญด้าน OCR ของตำรวจไทย หน้าที่ของคุณคือสกัดข้อมูลจากรูปภาพที่ส่งมาอย่างแม่นยำที่สุด:
+        
+        กรณีที่ 1: "บัตรประชาชน"
+        - สกัด ชื่อ (firstName) และ นามสกุล (lastName) เป็นภาษาไทย
+        - ไม่ต้องใส่คำนำหน้า (นาย/นาง/นางสาว)
+        - สกัด "ที่อยู่ตามบัตร" (address) ให้ครบถ้วนที่สุด
+        
+        กรณีที่ 2: "ป้ายทะเบียนรถ"
+        - สกัด เลขทะเบียน (plateNo) เช่น "1กข 1234"
+        - สกัด จังหวัด (province) เช่น "อุทัยธานี"
+        
+        ตอบกลับเป็น JSON รูปแบบนี้เท่านั้น (ห้ามมีคำพูดอื่นนอกเหนือจาก JSON):
+        {
+          "type": "id_card" หรือ "license_plate",
+          "firstName": "...",
+          "lastName": "...",
+          "address": "...",
+          "plateNo": "...",
+          "province": "...",
+          "confidence": 0-1
+        }
+        
+        สำคัญ: หากสแกนไม่สำเร็จหรือไม่มั่นใจ ให้ใส่ค่าเป็น null ในฟิลด์นั้นๆ แต่ยังคงส่งรูปแบบ JSON เดิมมา
+      `;
+
+      const safetySettings = [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      ];
+
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [
+          { text: prompt },
+          { inlineData: { data: imageBuffer.toString('base64'), mimeType } }
+        ]}],
+        safetySettings
+      });
+
+      const response = await result.response;
       
-      กรณีที่ 1: "บัตรประชาชน"
-      - สกัด ชื่อ (firstName) และ นามสกุล (lastName) เป็นภาษาไทย
-      - ไม่ต้องใส่คำนำหน้า (นาย/นาง/นางสาว)
-      - สกัด "ที่อยู่ตามบัตร" (address) ให้ครบถ้วนที่สุด
-      
-      กรณีที่ 2: "ป้ายทะเบียนรถ"
-      - สกัด เลขทะเบียน (plateNo) เช่น "1กข 1234"
-      - สกัด จังหวัด (province) เช่น "อุทัยธานี"
-      
-      ตอบกลับเป็น JSON รูปแบบนี้เท่านั้น (ห้ามมีคำพูดอื่นนอกเหนือจาก JSON):
-      {
-        "type": "id_card" หรือ "license_plate",
-        "firstName": "...",
-        "lastName": "...",
-        "address": "...",
-        "plateNo": "...",
-        "province": "...",
-        "confidence": 0-1
+      if (response.promptFeedback && response.promptFeedback.blockReason) {
+        console.warn(`Model ${modelName} blocked by safety: ${response.promptFeedback.blockReason}`);
+        continue;
       }
+
+      const rawText = response.text().trim();
+      console.log(`🤖 Raw AI OCR Response (${modelName}):`, rawText);
       
-      สำคัญ: หากสแกนไม่สำเร็จหรือไม่มั่นใจ ให้ใส่ค่าเป็น null ในฟิลด์นั้นๆ แต่ยังคงส่งรูปแบบ JSON เดิมมา
-    `;
-
-    const safetySettings = [
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    ];
-
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [
-        { text: prompt },
-        { inlineData: { data: imageBuffer.toString('base64'), mimeType } }
-      ]}],
-      safetySettings
-    });
-
-    const response = await result.response;
-    
-    // ตรวจสอบว่าโดน Block หรือไม่
-    if (response.promptFeedback && response.promptFeedback.blockReason) {
-      return { error: `Blocked by AI Safety: ${response.promptFeedback.blockReason}` };
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) continue;
+      
+      const cleanJson = jsonMatch[0].replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      
+      if (parsed.type) return parsed;
+    } catch (err) {
+      console.error(`OCR Error (${modelName}):`, err.message);
+      lastError = err.message;
+      if (err.message.includes('404') || err.message.includes('not found')) {
+        continue;
+      }
+      break; 
     }
-
-    const rawText = response.text().trim();
-    console.log('🤖 Raw AI OCR Response:', rawText);
-    
-    // พยายามหา JSON ภายในข้อความ (กรณี AI แอบใส่คำนำหน้ามา)
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('❌ AI did not return a valid JSON format. Raw:', rawText);
-      return { error: 'Invalid AI Response Format' };
-    }
-    
-    const cleanJson = jsonMatch[0].replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
-    
-    if (!parsed.type) return { error: 'Incomplete Data' };
-    
-    return parsed;
-  } catch (err) {
-    console.error('Analyze Image Error:', err.stack || err.message);
-    return { error: err.message };
   }
+
+  return { error: lastError || 'All models failed' };
 }
 
 module.exports = { askAI, analyzeImage };
