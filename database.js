@@ -48,19 +48,21 @@ async function fetchSheet(sheetName) {
     const response = await axios.get(url, { timeout: 10000 });
     const allRows = parseCSV(response.data);
     
-    // กรองแถวว่าง
-    const rows = allRows.filter(row => row.some(cell => cell.trim() !== ''));
+    // ข้ามอย่างน้อย 1 แถว (อาจเป็น Title หรือ Header)
+    // และกรองแถวว่าง + แถวที่เป็น Header ออก
+    const dataRows = allRows.slice(1).filter(row => {
+      const hasContent = row.some(cell => cell.trim() !== '');
+      if (!hasContent) return false;
+      
+      // กรองแถว Header (ถ้า Row 2 เป็น Header)
+      const isHeader = (row[1] || '').trim() === 'ชื่อ';
+      return !isHeader;
+    });
 
-    console.log(`📥 [${sheetName}] โหลด CSV สำเร็จ: ${rows.length} แถว`);
-
-    let dataRows = [];
-    
-    // ข้าม 2 แถวแรกเสมอ (แถว Title และแถว Header)
-    dataRows = rows.slice(2);
-    console.log(`🔍 [${sheetName}] เริ่มดึงข้อมูลจากแถวที่ 3, พบข้อมูล ${dataRows.length} รายการ`);
+    console.log(`📥 [${sheetName}] โหลด CSV สำเร็จ: ${dataRows.length} แถว (จากทั้งหมด ${allRows.length})`);
 
     let data = [];
-
+    
     if (sheetName === SHEET_PERSONNEL) {
       // ── บุคลากร สภ. ──
       // A=ยศ  B=ชื่อ  C=นามสกุล  D=ตำแหน่ง  E=ฝ่าย/งาน  F=โทรศัพท์  G=อีเมล  H=วันที่บันทึก

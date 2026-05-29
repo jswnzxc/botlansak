@@ -1238,4 +1238,5 @@ module.exports = {
   buildAllCommandsFlex,
   buildQuickAddFlex,
   buildDeepPhoneSearchFlex,
+  buildSmartCard,
 };

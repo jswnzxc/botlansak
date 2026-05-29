@@ -33,21 +33,23 @@ function isAdminCommand(text) {
 }
 
 /**
- * Parse คำสั่ง /เพิ่ม
+ * แยก ยศ/ชื่อ/นามสกุล ออกจากข้อความ
  */
-function parseAddCommand(text, userId) {
-  const content = text.replace(/^\/เพิ่ม\s+/, '').trim();
-  const parts = content.split('|').map(s => s.trim());
-  const nameParts = (parts[0] || '').trim().split(/\s+/);
-
+function extractName(fullName) {
+  const nameParts = fullName.trim().split(/\s+/);
   let rank = '', firstName = '', lastName = '';
-  const RANKS = ['นาย', 'นาง', 'น.ส.', 'ด.ช.', 'ด.ญ.', 'พ.ต.อ.', 'พ.ต.ท.', 'พ.ต.ต.',
+  const RANKS = ['นาย', 'นาง', 'นางสาว', 'น.ส.', 'ด.ช.', 'ด.ญ.',
+                 'พล.ต.อ.', 'พล.ต.ท.', 'พล.ต.ต.', 'พ.ต.อ.', 'พ.ต.ท.', 'พ.ต.ต.',
                  'ร.ต.อ.', 'ร.ต.ท.', 'ร.ต.ต.', 'ส.ต.อ.', 'ส.ต.ท.', 'ส.ต.ต.',
-                 'จ.ส.ต.', 'ดาบตำรวจ', 'สิบตำรวจ'];
+                 'จ.ส.ต.', 'ด.ต.', 'ดาบตำรวจ', 'สิบตำรวจ',
+                 'พล.ต.อ.หญิง', 'พล.ต.ท.หญิง', 'พล.ต.ต.หญิง', 'พ.ต.อ.หญิง', 'พ.ต.ท.หญิง', 'พ.ต.ต.หญิง',
+                 'ร.ต.อ.หญิง', 'ร.ต.ท.หญิง', 'ร.ต.ต.หญิง', 'ส.ต.อ.หญิง', 'ส.ต.ท.หญิง', 'ส.ต.ต.หญิง',
+                 'จ.ส.ต.หญิง', 'ด.ต.หญิง'];
 
   if (nameParts.length >= 2) {
-    if (RANKS.includes(nameParts[0])) {
-      rank = nameParts[0];
+    const foundRank = RANKS.find(r => nameParts[0] === r);
+    if (foundRank) {
+      rank = foundRank;
       firstName = nameParts[1];
       lastName = nameParts.slice(2).join(' ') || '-';
     } else {
@@ -56,9 +58,19 @@ function parseAddCommand(text, userId) {
     }
   } else if (nameParts.length === 1) {
     firstName = nameParts[0];
-  } else {
-    return null;
   }
+  return { rank, firstName, lastName };
+}
+
+/**
+ * Parse คำสั่ง /เพิ่ม
+ */
+function parseAddCommand(text, userId) {
+  const content = text.replace(/^\/เพิ่ม\s+/, '').trim();
+  const parts = content.split('|').map(s => s.trim());
+  const { rank, firstName, lastName } = extractName(parts[0]);
+
+  if (!firstName) return null;
 
   return {
     rank, firstName, lastName,
@@ -72,30 +84,30 @@ function parseAddCommand(text, userId) {
 
 /**
  * Parse คำสั่ง /ลบ
- * รูปแบบ: /ลบ ชื่อ นามสกุล
+ * รูปแบบ: /ลบ [ยศ] ชื่อ นามสกุล
  */
 function parseDeleteCommand(text) {
   const content = text.replace(/^\/ลบ\s+/, '').trim();
-  const parts = content.split(/\s+/);
-  if (parts.length < 2) return null;
-  return { firstName: parts[0], lastName: parts[1] };
+  const { firstName, lastName } = extractName(content);
+  if (!firstName || !lastName || lastName === '-') return null;
+  return { firstName, lastName };
 }
 
 /**
  * Parse คำสั่ง /แก้ไข
- * รูปแบบ: /แก้ไข ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่
+ * รูปแบบ: /แก้ไข [ยศ] ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่
  */
 function parseEditCommand(text) {
   const content = text.replace(/^\/แก้ไข\s+/, '').trim();
   const mainParts = content.split('|').map(s => s.trim());
   if (mainParts.length < 3) return null;
 
-  const nameParts = mainParts[0].split(/\s+/);
-  if (nameParts.length < 2) return null;
+  const { firstName, lastName } = extractName(mainParts[0]);
+  if (!firstName || !lastName || lastName === '-') return null;
 
   return {
-    firstName: nameParts[0],
-    lastName: nameParts[1],
+    firstName,
+    lastName,
     field: mainParts[1],
     newValue: mainParts[2]
   };

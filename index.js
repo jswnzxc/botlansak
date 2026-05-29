@@ -15,6 +15,7 @@ const {
   buildAllCommandsFlex,
   buildQuickAddFlex,
   buildDeepPhoneSearchFlex,
+  buildSmartCard,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -118,7 +119,7 @@ async function handleEvent(event) {
   // ─────────────────────────────────────────────────────────
   if (isGroup) {
     const isExplicitAdmin = userText.startsWith('/');
-    const isExplicitSearch = userText.startsWith('ค้นหา') || userText.startsWith('ตรวจสอบ');
+    const isExplicitSearch = /^(ค้นหา|ตรวจสอบ|เช็ค|ส่อง|check|search)/i.test(userText) || /^หา(\s+|$)/.test(userText);
     const isPhone = /^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''));
     const isMentionBot = userText.includes('บอท') || userText.toLowerCase().includes('bot');
     const isMainKeywords = [
@@ -280,10 +281,14 @@ async function handleEvent(event) {
     const isPersonnelSearch = userText.startsWith('บุคลากร');
     const isLeaderSearch    = userText.startsWith('ผู้นำตำบล');
     
-    // ดึงเฉพาะคำที่จะใช้ค้นหาจริงๆ ออกมา (ลบคำสั่ง ค้นหา/บุคลากร/ผู้นำตำบล ออก)
-    const searchQuery = userText.replace(/^(ค้นหา|บุคลากร|ผู้นำตำบล)\s*/, '').trim();
+    // ดึงเฉพาะคำที่จะใช้ค้นหาจริงๆ ออกมา (ลบคำสั่ง/คำเรียกบอทออก)
+    let searchQuery = userText.replace(/^(ค้นหา|ตรวจสอบ|เช็ค|ส่อง|check|search|หา|บุคลากร|ผู้นำตำบล|บอท|bot)\s*/i, '').trim();
+    // ถ้ายังติดคำว่า "บอท" หรือ "bot" ที่อื่นในประโยค (เช่น "บอท ค้นหา รัตติ") ให้ลบออกอีกรอบ
+    searchQuery = searchQuery.replace(/(บอท|bot)\s*/gi, '').trim();
     
     console.log(`🔍 กำลังค้นหาคำว่า: "${searchQuery}" (จากประโยค: "${userText}")`);
+    
+    if (!searchQuery) return; // ถ้าไม่มีคำค้นหาเลย ไม่ต้องทำอะไร
     
     let results = await searchByName(searchQuery);
     // [แก้ไข] กรองผลลัพธ์: ถ้าเลือกจากเมนูให้กรองเข้มงวด แต่ถ้า "ค้นหา" เองให้หาจากทุกหน้า
@@ -300,13 +305,13 @@ async function handleEvent(event) {
       // ... แสดงผล ...
       if (results.length === 1) {
         const p = results[0];
-        const card = p.sheetType === 'personnel' ? buildPersonnelCardFlex(p) : p.sheetType === 'leader' ? buildLeaderCardFlex(p) : buildResultFlex(p, isAdmin(userId)).contents;
-        return replyMessage(replyToken, { type: 'flex', altText: `พบ: ${p.fullName}`, contents: card });
+        const bubble = buildSmartCard(p, isAdmin(userId));
+        return replyMessage(replyToken, { type: 'flex', altText: `พบ: ${p.fullName}`, contents: bubble });
       }
-      return replyMessage(replyToken, buildCarouselFlex(results, userText, isAdmin(userId)));
+      return replyMessage(replyToken, buildCarouselFlex(results, searchQuery, isAdmin(userId)));
     }
 
-    return replyMessage(replyToken, buildNotFoundFlex(userText));
+    return replyMessage(replyToken, buildNotFoundFlex(searchQuery));
   }
 }
 
