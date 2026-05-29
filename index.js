@@ -28,7 +28,7 @@ const {
 } = require('./admin');
 const { 
   appendWatchlistPerson, deletePerson, updatePersonField,
-  loadFollowersFromSheet,
+  loadFollowersFromSheet, logOcrScan,
   isConfigured: isSheetConfigured 
 } = require('./sheets-writer');
 const { trackUser, broadcastToAll, getStats, buildBroadcastResultFlex } = require('./broadcast');
@@ -124,6 +124,9 @@ async function handleEvent(event) {
         if (!ocrResult) {
           return client.pushMessage({ to: sourceId, messages: [{ type: 'text', text: '❌ ไม่สามารถสแกนข้อมูลจากรูปภาพได้ กรุณาลองใหม่อีกครั้งครับ' }] });
         }
+
+        // บันทึกลง Google Sheets อัตโนมัติ (Log)
+        await logOcrScan(ocrResult, userId);
 
         // ค้นหาในฐานข้อมูล
         let searchQuery = '';

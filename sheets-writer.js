@@ -204,6 +204,39 @@ async function loadFollowersFromSheet() {
   }
 }
 
+const SHEET_LOGS      = 'บันทึกการสแกน'; // แผ่นงานสำหรับเก็บประวัติการสแกน OCR
+
+/**
+ * บันทึกประวัติการสแกน OCR
+ */
+async function logOcrScan(data, adminId) {
+  const sheets = getSheetsClient();
+  const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+  
+  const row = [
+    now,
+    data.type === 'id_card' ? 'บัตรประชาชน' : 'ป้ายทะเบียน',
+    data.type === 'id_card' ? `${data.firstName} ${data.lastName}` : `${data.plateNo} ${data.province}`,
+    data.address || '-',
+    adminId || 'Unknown',
+    `ความแม่นยำ: ${(data.confidence * 100).toFixed(0)}%`
+  ];
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_LOGS}!A2:F`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] },
+    });
+    return true;
+  } catch (e) {
+    console.error('Error logging OCR scan:', e.message);
+    return false;
+  }
+}
+
 function isConfigured() {
   const config = {
     GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
@@ -216,5 +249,5 @@ function isConfigured() {
 
 module.exports = { 
   appendWatchlistPerson, deletePerson, updatePersonField, 
-  trackUserInSheet, loadFollowersFromSheet, isConfigured, SHEET_WATCHLIST 
+  trackUserInSheet, loadFollowersFromSheet, isConfigured, logOcrScan, SHEET_WATCHLIST 
 };
