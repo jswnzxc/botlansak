@@ -7,18 +7,17 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 async function askAI(userQuestion, sheetContext) {
   if (!process.env.GEMINI_API_KEY) return "⚠️ ยังไม่ได้ตั้งค่า GEMINI_API_KEY ในระบบครับ";
 
-  // ใช้ API เวอร์ชัน 1 (Stable) แทน v1beta
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   
-  // รายชื่อโมเดลที่ต้องการลองใช้ (เน้นตัวที่เสถียร)
-  const modelNames = ['gemini-1.5-flash', 'gemini-1.0-pro'];
+  // ปรับชื่อโมเดลให้ตรงตามที่ Google กำหนด
+  const modelNames = ['gemini-1.5-flash', 'gemini-pro'];
   
   let lastError = null;
 
   for (const modelName of modelNames) {
     try {
-      // ระบุเวอร์ชัน API เป็น v1
-      const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1' });
+      // ใช้ v1beta เพื่อรองรับโมเดลใหม่ๆ ได้ดีกว่า
+      const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1beta' });
       
       const systemPrompt = `
         คุณคือ "ผู้ช่วยอัจฉริยะ สายตรวจภูธรลานสัก"
@@ -35,16 +34,11 @@ async function askAI(userQuestion, sheetContext) {
     } catch (err) {
       console.error(`AI Error (${modelName}):`, err.message);
       lastError = err.message;
-      
-      // ถ้าเป็น 404 ให้ลองตัวถัดไป
-      if (err.message.includes('404') || err.message.includes('not found')) {
-        continue;
-      }
-      break;
+      continue;
     }
   }
 
-  return `❌ AI ขัดข้อง (Stable V1): ${lastError}\nกรุณาตรวจสอบสิทธิ์การใช้งานที่ Google AI Studio`;
+  return `❌ AI ขัดข้อง: ${lastError}\nกรุณาตรวจสอบสิทธิ์การใช้งานที่ Google AI Studio`;
 }
 
 /**
@@ -58,7 +52,7 @@ async function summarizeHistory(rawText) {
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const modelNames = ['gemini-1.5-flash', 'gemini-1.0-pro'];
+  const modelNames = ['gemini-1.5-flash', 'gemini-pro'];
   
   const systemPrompt = `
     คุณคือผู้ช่วยสรุปข้อมูลประวัติจากข้อความที่ได้จากการแสกนบัตรหรือเอกสาร
@@ -85,7 +79,7 @@ async function summarizeHistory(rawText) {
           { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
           { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
         ]
-      }, { apiVersion: 'v1' });
+      }, { apiVersion: 'v1beta' });
 
       const result = await model.generateContent([systemPrompt, rawText]);
       const response = await result.response;
