@@ -218,13 +218,15 @@ async function handleEvent(event) {
     await replyText(replyToken, '⏳ กำลังวิเคราะห์และสรุปข้อมูลด้วย AI สักครู่ครับ...');
 
     try {
-      const summary = await summarizeHistory(rawData);
-      if (!summary) {
+      const result = await summarizeHistory(rawData);
+      if (!result.success) {
         return client.pushMessage({
           to: sourceId,
-          messages: [{ type: 'text', text: '❌ AI ไม่สามารถสรุปข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' }]
+          messages: [{ type: 'text', text: `❌ AI ไม่สามารถสรุปข้อมูลได้: ${result.error}` }]
         });
       }
+
+      const summary = result.data;
 
       // ดึงชื่อผู้ใช้
       let userName = 'ไม่ระบุชื่อ';
@@ -256,7 +258,7 @@ async function handleEvent(event) {
       // ใช้ pushMessage เพราะ replyToken น่าจะถูกใช้ไปแล้วหรือหมดอายุ
       return client.pushMessage({
         to: sourceId,
-        messages: [{ type: 'text', text: '❌ เกิดข้อผิดพลาดขัดข้องในระบบ AI ครับ' }]
+        messages: [{ type: 'text', text: `❌ เกิดข้อผิดพลาดขัดข้องในระบบ AI ครับ: ${err.message}` }]
       });
     }
   }

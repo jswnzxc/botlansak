@@ -50,12 +50,11 @@ async function askAI(userQuestion, sheetContext) {
 /**
  * ฟังก์ชันสรุปข้อมูลจากข้อความ (เช่น ผลจาก OCR บัตรประชาชน)
  * @param {string} rawText ข้อความดิบที่ต้องการสรุป
- * @returns {Object} ข้อมูลที่สรุปแล้วในรูปแบบ JSON
+ * @returns {Object} { success: boolean, data?: Object, error?: string }
  */
 async function summarizeHistory(rawText) {
   if (!process.env.GEMINI_API_KEY) {
-    console.error('summarizeHistory: GEMINI_API_KEY is missing');
-    return null;
+    return { success: false, error: 'GEMINI_API_KEY is missing' };
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -74,9 +73,20 @@ async function summarizeHistory(rawText) {
     ตอบกลับเฉพาะ JSON เท่านั้น ห้ามมีคำอธิบายอื่น ห้ามมี markdown code blocks
   `;
 
+  let lastError = '';
+
   for (const modelName of modelNames) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1' });
+      const model = genAI.getGenerativeModel({ 
+        model: modelName,
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        ]
+      }, { apiVersion: 'v1' });
+
       const result = await model.generateContent([systemPrompt, rawText]);
       const response = await result.response;
       let text = response.text().trim();
@@ -84,7 +94,6 @@ async function summarizeHistory(rawText) {
       // ลบ markdown code block ถ้ามี
       text = text.replace(/```json/g, '').replace(/```/g, '').trim();
       
-      // ค้นหาขอบเขตของ JSON (เผื่อ AI ตอบอย่างอื่นมาด้วย)
       const jsonStart = text.indexOf('{');
       const jsonEnd = text.lastIndexOf('}');
       if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -92,16 +101,14 @@ async function summarizeHistory(rawText) {
       }
 
       const parsedData = JSON.parse(text);
-      console.log(`✅ summarizeHistory success with model: ${modelName}`);
-      return parsedData;
+      return { success: true, data: parsedData };
     } catch (err) {
       console.error(`summarizeHistory Error (${modelName}):`, err.message);
-      // ถ้าเป็นโมเดลสุดท้ายแล้วค่อยคืนค่า null
-      if (modelName === modelNames[modelNames.length - 1]) {
-        return null;
-      }
+      lastError = err.message;
     }
   }
+
+  return { success: false, error: lastError };
 }
 
 module.exports = { askAI, summarizeHistory };
