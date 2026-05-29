@@ -1221,6 +1221,69 @@ function buildDeepPhoneSearchFlex(phone, carrierInfo, localResults = []) {
   };
 }
 
+function buildOcrResultFlex(ocrData, localResults = []) {
+  const contents = [
+    {
+      type: 'box', layout: 'vertical', spacing: 'sm',
+      contents: [
+        { type: 'text', text: ocrData.type === 'id_card' ? '🪪 ผลการสแกนบัตรประชาชน' : '🚘 ผลการสแกนป้ายทะเบียน', weight: 'bold', size: 'md', color: '#1a3a6e' },
+        ocrData.type === 'id_card' 
+          ? { type: 'text', text: `👤 ชื่อ-นามสกุล: ${ocrData.firstName} ${ocrData.lastName}`, size: 'sm', weight: 'bold' }
+          : { type: 'text', text: `🔢 ทะเบียนรถ: ${ocrData.plateNo} ${ocrData.province}`, size: 'sm', weight: 'bold' },
+        { type: 'text', text: `🎯 ความแม่นยำ AI: ${(ocrData.confidence * 100).toFixed(0)}%`, size: 'xs', color: '#888888' }
+      ]
+    },
+    { type: 'separator', margin: 'md' },
+    {
+      type: 'text',
+      text: `🔍 ตรวจสอบในฐานข้อมูลเฝ้าระวัง (${localResults.length} รายการ)`,
+      weight: 'bold', size: 'xs', margin: 'md', color: '#e67e22'
+    }
+  ];
+
+  if (localResults.length === 0) {
+    contents.push({
+      type: 'text',
+      text: '✅ ไม่พบประวัติการเฝ้าระวัง หรือหมายจับในระบบสายตรวจ สภ.ลานสัก',
+      color: '#27ae60', size: 'xs', wrap: true, margin: 'sm', weight: 'bold'
+    });
+  } else {
+    localResults.forEach((p, idx) => {
+      contents.push({
+        type: 'box', layout: 'vertical', margin: 'sm', paddingAll: '8px', backgroundColor: '#fff5f5', cornerRadius: '6px',
+        contents: [
+          { type: 'text', text: `${idx+1}. ${p.rank}${p.firstName} ${p.lastName}`, size: 'xs', weight: 'bold', color: '#cc3333' },
+          { type: 'text', text: `📋 คดี: ${p.crime || '-'} (${p.status || 'เฝ้าระวัง'})`, size: 'xxs', color: '#555555', wrap: true },
+          { type: 'text', text: `📍 พื้นที่: ${p.area || '-'}`, size: 'xxs', color: '#888888' }
+        ],
+        action: {
+          type: 'message',
+          label: 'ดูรายละเอียด',
+          text: `ค้นหา ${p.firstName} ${p.lastName}`
+        }
+      });
+    });
+  }
+
+  return {
+    type: 'flex',
+    altText: '🔍 ผลการตรวจสอบรูปภาพด้วย AI',
+    contents: {
+      type: 'bubble', size: 'mega',
+      header: {
+        type: 'box', layout: 'vertical', backgroundColor: '#1a5276', paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '🤖 ระบบสแกนและตรวจสอบ AI OCR', color: '#ffffff', weight: 'bold', size: 'sm' },
+        ],
+      },
+      body: {
+        type: 'box', layout: 'vertical', paddingAll: '16px', spacing: 'sm',
+        contents: contents,
+      },
+    },
+  };
+}
+
 module.exports = {
   buildResultFlex,
   buildCarouselFlex,
@@ -1239,4 +1302,5 @@ module.exports = {
   buildQuickAddFlex,
   buildDeepPhoneSearchFlex,
   buildSmartCard,
+  buildOcrResultFlex,
 };

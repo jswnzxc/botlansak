@@ -47,4 +47,53 @@ async function askAI(userQuestion, sheetContext) {
   return `❌ AI ขัดข้อง (Stable V1): ${lastError}\nกรุณาตรวจสอบสิทธิ์การใช้งานที่ Google AI Studio`;
 }
 
-module.exports = { askAI };
+/**
+ * วิเคราะห์รูปภาพ (OCR) บัตรประชาชน หรือ ป้ายทะเบียน
+ */
+async function analyzeImage(imageBuffer, mimeType) {
+  if (!process.env.GEMINI_API_KEY) return null;
+
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' });
+
+    const prompt = `
+      คุณคือผู้ช่วยตำรวจ หน้าที่ของคุณคือสกัดข้อมูลจากรูปภาพที่ส่งมา:
+      1. หากเป็น "บัตรประชาชน": ให้สกัด ชื่อ และ นามสกุล เป็นภาษาไทย (ไม่ต้องมียศ เช่น นาย/นาง/นางสาว)
+      2. หากเป็น "ป้ายทะเบียนรถ": ให้สกัด เลขทะเบียน และ จังหวัด
+      
+      ตอบกลับเป็น JSON รูปแบบนี้เท่านั้น (ห้ามมีคำอธิบายอื่น):
+      {
+        "type": "id_card" หรือ "license_plate",
+        "firstName": "ชื่อ",
+        "lastName": "นามสกุล",
+        "plateNo": "เลขทะเบียน",
+        "province": "จังหวัด",
+        "confidence": 0-1
+      }
+    `;
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: imageBuffer.toString('base64'),
+          mimeType
+        }
+      }
+    ]);
+
+    const response = await result.response;
+    let text = response.text().trim();
+    
+    // ทำความสะอาด JSON (เผื่อ AI ใส่ markdown ```json มา)
+    text = text.replace(/```json|```/g, '').trim();
+    
+    return JSON.parse(text);
+  } catch (err) {
+    console.error('Analyze Image Error:', err.message);
+    return null;
+  }
+}
+
+module.exports = { askAI, analyzeImage };

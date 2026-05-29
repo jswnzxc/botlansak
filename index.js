@@ -7,7 +7,7 @@ require('dotenv').config();
 const line    = require('@line/bot-sdk');
 const express = require('express');
 const { searchByName, searchByPhone, fetchAllData, fetchPersonnel, fetchLeaders, clearCache, caches } = require('./database');
-const {
+const { 
   buildResultFlex, buildCarouselFlex, buildNotFoundFlex, buildWelcomeFlex, buildStationFlex,
   buildWebsiteFlex, buildPersonnelMenuFlex, buildPersonnelCardFlex, buildPersonnelCarouselFlex,
   buildVillageLeaderMenuFlex, buildLeaderCardFlex, buildLeaderCarouselFlex,
@@ -16,6 +16,7 @@ const {
   buildQuickAddFlex,
   buildDeepPhoneSearchFlex,
   buildSmartCard,
+  buildOcrResultFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -31,9 +32,10 @@ const {
   isConfigured: isSheetConfigured 
 } = require('./sheets-writer');
 const { trackUser, broadcastToAll, getStats, buildBroadcastResultFlex } = require('./broadcast');
-const { askAI } = require('./ai');
+const { askAI, analyzeImage } = require('./ai');
 
 // ===== Line SDK Config =====
+const axios = require('axios'); // สำหรับโหลดไฟล์จาก LINE
 const lineConfig = {
   channelSecret:      process.env.LINE_CHANNEL_SECRET,
   channelAccessToken: process.env.LINE_CHANNEL_TOKEN,
@@ -41,6 +43,9 @@ const lineConfig = {
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_TOKEN,
 });
+
+// เก็บสถานะชั่วคราวสำหรับ OCR
+const userStates = {};
 
 const app = express();
 
@@ -73,7 +78,7 @@ async function handleEvent(event) {
       try {
         const profile = await client.getProfile(userId);
         trackUser(userId, profile.displayName);
-        
+
         // ส่งข้อความต้อนรับพร้อมรายการคำสั่ง
         const welcomeText = `👋 สวัสดีครับ ${profile.displayName}!\nขอบคุณที่ติดตาม Bot สายตรวจภูธรลานสัก\n\n📌 นี่คือรายการคำสั่งที่คุณสามารถใช้งานได้ครับ:`;
         return client.replyMessage({
@@ -99,6 +104,46 @@ async function handleEvent(event) {
   // รองรับทั้ง Message และ Postback (สำหรับปุ่มกดบางประเภท)
   if (event.type !== 'message' && event.type !== 'postback') return;
 
+  // ── [OCR] จัดการรูปภาพ ──
+  if (event.type === 'message' && event.message.type === 'image') {
+    if (userStates[userId] === 'WAITING_FOR_OCR') {
+      delete userStates[userId];
+      await replyText(event.replyToken, '⌛ กำลังดาวน์โหลดและวิเคราะห์รูปภาพด้วย AI สักครู่ครับ...');
+
+      try {
+        const messageId = event.message.id;
+        const url = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+        const response = await axios.get(url, {
+          headers: { 'Authorization': `Bearer ${process.env.LINE_CHANNEL_TOKEN}` },
+          responseType: 'arraybuffer'
+        });
+
+        const buffer = Buffer.from(response.data, 'binary');
+        const ocrResult = await analyzeImage(buffer, 'image/jpeg');
+
+        if (!ocrResult) {
+          return client.pushMessage({ to: sourceId, messages: [{ type: 'text', text: '❌ ไม่สามารถสแกนข้อมูลจากรูปภาพได้ กรุณาลองใหม่อีกครั้งครับ' }] });
+        }
+
+        // ค้นหาในฐานข้อมูล
+        let searchQuery = '';
+        if (ocrResult.type === 'id_card') {
+          searchQuery = `${ocrResult.firstName} ${ocrResult.lastName}`;
+        } else {
+          searchQuery = ocrResult.plateNo;
+        }
+
+        const localResults = await searchByName(searchQuery);
+        return client.pushMessage({ to: sourceId, messages: [buildOcrResultFlex(ocrResult, localResults)] });
+
+      } catch (err) {
+        console.error('OCR Process Error:', err.message);
+        return client.pushMessage({ to: sourceId, messages: [{ type: 'text', text: '❌ เกิดข้อผิดพลาดในระบบสแกนรูปภาพ' }] });
+      }
+    }
+    return; // ถ้ารูปส่งมาเฉยๆ ไม่ได้กดเมนู OCR ก็ไม่ต้องทำอะไร
+  }
+
   // ดึงข้อความจาก event
   let userText = '';
   if (event.type === 'message' && event.message.type === 'text') {
@@ -113,6 +158,12 @@ async function handleEvent(event) {
   const isGroup    = event.source.type === 'group' || event.source.type === 'room';
 
   console.log(`📩 [${event.source.type}] From: ${userId || 'unknown'} Text: "${userText}"`);
+
+  // ── [OCR] คำสั่งตรวจสอบรูปภาพ ──
+  if (userText === '/ตรวจสอบรูปภาพ' || userText === 'สแกนบัตร' || userText === 'สแกนป้ายทะเบียน') {
+    userStates[userId] = 'WAITING_FOR_OCR';
+    return replyText(replyToken, '📸 กรุณาส่งรูปถ่าย "บัตรประชาชน" หรือ "ป้ายทะเบียนรถ" มาให้บอทตรวจสอบได้เลยครับ');
+  }
 
   // ─────────────────────────────────────────────────────────
   // [Extreme Silence] กรองข้อความสำหรับแชทกลุ่ม
