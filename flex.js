@@ -304,6 +304,7 @@ function buildWelcomeFlex() {
           buildMenuButton('🔍', 'ค้นหาชื่อผู้ต้องหา',       'ค้นหาชื่อ',         '#1a3a6e'),
           buildMenuButton('👥', 'ทำเนียบบุคลากร สภ.ลานสัก', 'ทำเนียบบุคลากร',    '#1a5276'),
           buildMenuButton('🏘️', 'ทำเนียบผู้นำตำบล',         'ทำเนียบผู้นำตำบล',  '#1d6a4a'),
+          buildMenuButton('📍', 'ส่งตำแหน่งที่ตั้ง',        'ส่งตำแหน่ง',        '#2e7d32', 'location'),
           buildMenuButton('🌐', 'เว็บไซต์ สภ.ลานสัก',       'เว็บไซต์',          '#5d4037'),
           buildMenuButton('🚨', 'แจ้งเหตุ / ร้องทุกข์',     'แจ้งเหตุ',          '#cc3333'),
           buildMenuButton('📋', 'ตรวจสอบหมายจับ',            'ตรวจสอบหมายจับ',    '#b45309'),
@@ -798,7 +799,11 @@ function buildInfoRow(icon, label, value) {
   };
 }
 
-function buildMenuButton(icon, label, action, color) {
+function buildMenuButton(icon, label, actionValue, color, type = 'message') {
+  const action = type === 'location' 
+    ? { type: 'location', label: label }
+    : { type: 'message', label: label, text: actionValue };
+
   return {
     type: 'box',
     layout: 'horizontal',
@@ -806,7 +811,7 @@ function buildMenuButton(icon, label, action, color) {
     cornerRadius: '10px',
     paddingAll: '12px',
     margin: 'sm',
-    action: { type: 'message', label: label, text: action },
+    action: action,
     contents: [
       { type: 'text', text: icon,  size: 'md', flex: 0 },
       { type: 'text', text: label, size: 'sm', color: color, weight: 'bold', margin: 'md', flex: 1 },
@@ -925,6 +930,7 @@ function buildAllCommandsFlex(isAdminUser) {
     { title: '📞 ค้นหาเบอร์', desc: 'พิมพ์ เบอร์โทรศัพท์ 10 หลัก' },
     { title: '👮 ตำรวจ', desc: 'ดูทำเนียบบุคลากร สภ.ลานสัก' },
     { title: '🏘️ ผู้นำตำบล', desc: 'ดูทำเนียบผู้นำตำบล' },
+    { title: '📍 ส่งตำแหน่ง', desc: 'กดปุ่ม "ส่งตำแหน่งที่ตั้ง" ในเมนู' },
     { title: '⛽ ปั๊มน้ำมัน', desc: '/เบอร์ปั๊ม เพื่อดูเบอร์โทร' },
     { title: '🌐 เว็บไซต์', desc: 'ดูลิงก์เว็บไซต์ที่เกี่ยวข้อง' },
   ];
