@@ -53,11 +53,14 @@ async function askAI(userQuestion, sheetContext) {
  * @returns {Object} ข้อมูลที่สรุปแล้วในรูปแบบ JSON
  */
 async function summarizeHistory(rawText) {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!process.env.GEMINI_API_KEY) {
+    console.error('summarizeHistory: GEMINI_API_KEY is missing');
+    return null;
+  }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' });
-
+  const modelNames = ['gemini-1.5-flash', 'gemini-1.0-pro'];
+  
   const systemPrompt = `
     คุณคือผู้ช่วยสรุปข้อมูลประวัติจากข้อความที่ได้จากการแสกนบัตรหรือเอกสาร
     กรุณาสรุปข้อมูลจากข้อความที่ผู้ใช้ส่งมาให้เป็น JSON format ดังนี้:
@@ -68,21 +71,36 @@ async function summarizeHistory(rawText) {
       "accuracy": "ประเมินความแม่นยำของข้อมูล (สูง/กลาง/ต่ำ)",
       "status": "สถานะหรือประวัติคดีที่พบในข้อความ (ถ้าไม่มีให้ใส่ 'ไม่พบ')"
     }
-    ตอบกลับเฉพาะ JSON เท่านั้น ห้ามมีคำอธิบายอื่น
+    ตอบกลับเฉพาะ JSON เท่านั้น ห้ามมีคำอธิบายอื่น ห้ามมี markdown code blocks
   `;
 
-  try {
-    const result = await model.generateContent([systemPrompt, rawText]);
-    const response = await result.response;
-    let text = response.text().trim();
-    
-    // ลบ markdown code block ถ้ามี
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    return JSON.parse(text);
-  } catch (err) {
-    console.error('summarizeHistory Error:', err);
-    return null;
+  for (const modelName of modelNames) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1' });
+      const result = await model.generateContent([systemPrompt, rawText]);
+      const response = await result.response;
+      let text = response.text().trim();
+      
+      // ลบ markdown code block ถ้ามี
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      // ค้นหาขอบเขตของ JSON (เผื่อ AI ตอบอย่างอื่นมาด้วย)
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        text = text.substring(jsonStart, jsonEnd + 1);
+      }
+
+      const parsedData = JSON.parse(text);
+      console.log(`✅ summarizeHistory success with model: ${modelName}`);
+      return parsedData;
+    } catch (err) {
+      console.error(`summarizeHistory Error (${modelName}):`, err.message);
+      // ถ้าเป็นโมเดลสุดท้ายแล้วค่อยคืนค่า null
+      if (modelName === modelNames[modelNames.length - 1]) {
+        return null;
+      }
+    }
   }
 }
 
