@@ -278,15 +278,25 @@ async function handleEvent(event) {
 
   if (userText.startsWith('ขอคิวอาร์ ')) {
     const locationName = userText.replace('ขอคิวอาร์ ', '').trim();
-    const baseURL = process.env.BASE_URL || '';
+    let baseURL = process.env.BASE_URL || '';
+    
+    // ถ้าไม่มี https:// นำหน้า ให้เติมให้โดยอัตโนมัติ
+    if (baseURL && !baseURL.startsWith('http')) {
+      baseURL = `https://${baseURL}`;
+    }
+    
+    // ลบ / ที่อาจจะติดมาท้าย URL ออก
+    baseURL = baseURL.replace(/\/$/, '');
+
     const imageURL = `${baseURL}/qrcodes/${encodeURIComponent(locationName)}.png`;
     
-    console.log(`📸 ส่ง QR Code: ${locationName} -> ${imageURL}`);
+    console.log(`📸 กำลังส่ง QR Code: ${locationName}`);
+    console.log(`🔗 URL รูปภาพ: ${imageURL}`);
     
     return client.replyMessage({
       replyToken: replyToken,
       messages: [
-        { type: 'text', text: `📸 นี่คือ QR Code สำหรับ: ${locationName}` },
+        { type: 'text', text: `📸 นี่คือ QR Code สำหรับแสกนจุดตรวจ: ${locationName}` },
         {
           type: 'image',
           originalContentUrl: imageURL,
