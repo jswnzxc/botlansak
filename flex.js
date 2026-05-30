@@ -193,16 +193,29 @@ function buildSmartCard(person, isAdminUser = false) {
 
 /**
  * สร้าง Carousel เมื่อพบหลายคน (รองรับทุก sheetType)
+ * ปรับปรุง: รองรับการส่งหลาย Carousel (สูงสุด 5 messages) เพื่อให้เห็นข้อมูลทั้งหมด
  */
 function buildCarouselFlex(results, query, isAdminUser = false) {
-  return {
-    type: 'flex',
-    altText: `พบ ${results.length} รายการสำหรับ "${query}"`,
-    contents: {
-      type: 'carousel',
-      contents: results.slice(0, 10).map(p => buildSmartCard(p, isAdminUser)),
-    },
-  };
+  const maxPerCarousel = 10; 
+  const chunks = [];
+  for (let i = 0; i < results.length; i += maxPerCarousel) {
+    chunks.push(results.slice(i, i + maxPerCarousel));
+  }
+
+  // LINE จำกัดการตอบกลับ 5 messages ต่อครั้ง
+  return chunks.slice(0, 5).map((chunk, index) => {
+    const startCount = (index * maxPerCarousel) + 1;
+    const endCount = startCount + chunk.length - 1;
+    
+    return {
+      type: 'flex',
+      altText: `พบ ${results.length} รายการสำหรับ "${query}" (${startCount}-${endCount})`,
+      contents: {
+        type: 'carousel',
+        contents: chunk.map(p => buildSmartCard(p, isAdminUser)),
+      },
+    };
+  });
 }
 
 /**
@@ -363,6 +376,7 @@ function buildPersonnelMenuFlex() {
           buildMenuButton('📊', 'งานอำนวยการ',            'บุคลากร งานอำนวยการ',           '#1a5276'),
           buildMenuButton('🚦', 'งานจราจร',               'บุคลากร งานจราจร',              '#1a5276'),
           buildMenuButton('📋', 'ช่วยราชการ',              'บุคลากร ช่วยราชการ',            '#1a5276'),
+          buildMenuButton('👥', 'แสดงรายชื่อทั้งหมด',       'บุคลากร ทั้งหมด',              '#1a5276'),
           buildMenuButton('👤', 'ค้นหาตามชื่อ',           'ค้นหาชื่อ',                     '#555555'),
         ],
       },
@@ -478,6 +492,7 @@ function buildPersonnelCardFlex(person) {
 
 /**
  * Carousel แสดงรายชื่อบุคลากร สภ. หลายคน
+ * ปรับปรุง: รองรับการส่งหลาย Carousel เพื่อให้เห็นรายชื่อทั้งหมด
  */
 function buildPersonnelCarouselFlex(persons, department) {
   if (persons.length === 0) {
@@ -490,14 +505,26 @@ function buildPersonnelCarouselFlex(persons, department) {
       contents: buildPersonnelCardFlex(persons[0]),
     };
   }
-  return {
-    type: 'flex',
-    altText: `ทำเนียบบุคลากร ${department} — ${persons.length} คน`,
-    contents: {
-      type: 'carousel',
-      contents: persons.slice(0, 12).map(p => buildPersonnelCardFlex(p)),
-    },
-  };
+
+  const maxPerCarousel = 10;
+  const chunks = [];
+  for (let i = 0; i < persons.length; i += maxPerCarousel) {
+    chunks.push(persons.slice(i, i + maxPerCarousel));
+  }
+
+  return chunks.slice(0, 5).map((chunk, index) => {
+    const startCount = (index * maxPerCarousel) + 1;
+    const endCount = startCount + chunk.length - 1;
+    
+    return {
+      type: 'flex',
+      altText: `ทำเนียบบุคลากร ${department} — ${persons.length} คน (${startCount}-${endCount})`,
+      contents: {
+        type: 'carousel',
+        contents: chunk.map(p => buildPersonnelCardFlex(p)),
+      },
+    };
+  });
 }
 
 /**
@@ -546,6 +573,7 @@ function buildVillageLeaderMenuFlex() {
           buildMenuButton('🌿', 'ตำบลระบำ',         'ผู้นำตำบล ระบำ',        '#1d6a4a'),
           buildMenuButton('🍃', 'ตำบลป่าอ้อ',       'ผู้นำตำบล ป่าอ้อ',      '#1d6a4a'),
           buildMenuButton('🏡', 'ตำบลประดู่ยืน',    'ผู้นำตำบล ประดู่ยืน',   '#1d6a4a'),
+          buildMenuButton('📋', 'แสดงรายชื่อทั้งหมด', 'ผู้นำตำบล ทั้งหมด',      '#27ae60'),
           buildMenuButton('🔎', 'ค้นหาตามชื่อ',     'ค้นหาชื่อ',             '#555555'),
         ],
       },
@@ -640,20 +668,32 @@ function buildLeaderCardFlex(leader) {
 
 /**
  * Carousel แสดงรายชื่อผู้นำตำบลทั้งหมดในตำบลที่เลือก
+ * ปรับปรุง: รองรับการส่งหลาย Carousel เพื่อให้เห็นรายชื่อทั้งหมด
  */
 function buildLeaderCarouselFlex(leaders, subdistrict) {
   if (leaders.length === 0) {
     return buildNotFoundFlex(subdistrict);
   }
-  // แสดงเป็น Carousel เสมอ (ทั้งหมด ไม่เกิน 12 card)
-  return {
-    type: 'flex',
-    altText: `ทำเนียบผู้นำตำบล${subdistrict} — ${leaders.length} คน`,
-    contents: {
-      type: 'carousel',
-      contents: leaders.slice(0, 12).map(l => buildLeaderCardFlex(l)),
-    },
-  };
+  
+  const maxPerCarousel = 10;
+  const chunks = [];
+  for (let i = 0; i < leaders.length; i += maxPerCarousel) {
+    chunks.push(leaders.slice(i, i + maxPerCarousel));
+  }
+
+  return chunks.slice(0, 5).map((chunk, index) => {
+    const startCount = (index * maxPerCarousel) + 1;
+    const endCount = startCount + chunk.length - 1;
+
+    return {
+      type: 'flex',
+      altText: `ทำเนียบผู้นำตำบล${subdistrict} — ${leaders.length} คน (${startCount}-${endCount})`,
+      contents: {
+        type: 'carousel',
+        contents: chunk.map(l => buildLeaderCardFlex(l)),
+      },
+    };
+  });
 }
 
 /**

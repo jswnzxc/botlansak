@@ -325,15 +325,20 @@ async function handleEvent(event) {
     
     if (!searchQuery) return; // ถ้าไม่มีคำค้นหาเลย ไม่ต้องทำอะไร
     
-    let results = await searchByName(searchQuery);
-    // [แก้ไข] กรองผลลัพธ์: ถ้าเลือกจากเมนูให้กรองเข้มงวด แต่ถ้า "ค้นหา" เองให้หาจากทุกหน้า
-    if (isPersonnelSearch) {
-      results = results.filter(p => p.sheetType === 'personnel');
-    } else if (isLeaderSearch) {
-      results = results.filter(p => p.sheetType === 'leader');
+    let results;
+    if (searchQuery === 'ทั้งหมด') {
+      if (isPersonnelSearch) results = await fetchPersonnel();
+      else if (isLeaderSearch) results = await fetchLeaders();
+      else results = await searchByName(searchQuery);
     } else {
-      // กรณีพิมพ์ "ค้นหา [ชื่อ]" หรือพิมพ์ชื่อคนตรงๆ (ในแชทส่วนตัว) 
-      // จะไม่กรองทิ้ง และปล่อยให้เห็นข้อมูลจากทุกหน้า (ผู้ต้องหา + ตำรวจ + ผู้นำ)
+      results = await searchByName(searchQuery);
+    }
+
+    // [แก้ไข] กรองผลลัพธ์: ถ้าเลือกจากเมนูให้กรองเข้มงวด แต่ถ้า "ค้นหา" เองให้หาจากทุกหน้า
+    if (isPersonnelSearch && searchQuery !== 'ทั้งหมด') {
+      results = results.filter(p => p.sheetType === 'personnel');
+    } else if (isLeaderSearch && searchQuery !== 'ทั้งหมด') {
+      results = results.filter(p => p.sheetType === 'leader');
     }
 
     if (results.length > 0) {
@@ -343,6 +348,15 @@ async function handleEvent(event) {
         const bubble = buildSmartCard(p, isAdmin(userId));
         return replyMessage(replyToken, { type: 'flex', altText: `พบ: ${p.fullName}`, contents: bubble });
       }
+
+      // ใช้ builder เฉพาะทางถ้าเลือกจากเมนู (เพื่อให้ altText และการแสดงผลตรงหมวดหมู่)
+      if (isPersonnelSearch) {
+        return replyMessage(replyToken, buildPersonnelCarouselFlex(results, searchQuery));
+      }
+      if (isLeaderSearch) {
+        return replyMessage(replyToken, buildLeaderCarouselFlex(results, searchQuery));
+      }
+
       return replyMessage(replyToken, buildCarouselFlex(results, searchQuery, isAdmin(userId)));
     }
 
@@ -351,7 +365,10 @@ async function handleEvent(event) {
 }
 
 // ===== Helpers =====
-async function replyMessage(token, msg) { return client.replyMessage({ replyToken: token, messages: [msg] }); }
+async function replyMessage(token, msg) { 
+  const messages = Array.isArray(msg) ? msg : [msg];
+  return client.replyMessage({ replyToken: token, messages }); 
+}
 async function replyText(token, text) { return client.replyMessage({ replyToken: token, messages: [{ type: 'text', text }] }); }
 
 const PORT = process.env.PORT || 3000;
