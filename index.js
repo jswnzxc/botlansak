@@ -50,9 +50,12 @@ const app = express();
 app.use(express.static('public'));
 
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
-  // เก็บ Base URL ไว้ใช้ส่งรูปภาพ
+  // เก็บ Base URL ไว้ใช้ส่งรูปภาพ (ปรับปรุงให้รองรับ HTTPS บน Railway/Heroku)
   if (!process.env.BASE_URL) {
-    process.env.BASE_URL = `${req.protocol}://${req.get('host')}`;
+    const host = req.get('host');
+    const protocol = (req.get('x-forwarded-proto') || req.protocol);
+    process.env.BASE_URL = `${protocol}://${host}`;
+    console.log(`🌐 Auto-detected BASE_URL: ${process.env.BASE_URL}`);
   }
   Promise.all(req.body.events.map(handleEvent))
     .then(() => res.sendStatus(200))
