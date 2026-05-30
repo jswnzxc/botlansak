@@ -1392,6 +1392,125 @@ function buildLocationListFlex(locations) {
   };
 }
 
+/**
+ * Flex Message เมนูหลักจุดเสี่ยง (เลือกหมวดหมู่)
+ */
+function buildRiskCategoryMenuFlex() {
+  return {
+    type: 'flex',
+    altText: '📍 เลือกหมวดหมู่จุดเสี่ยง',
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#c0392b',
+        paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '📍 ระบบจุดเสี่ยง / QR Code', color: '#f5b7b1', size: 'sm' },
+          {
+            type: 'text',
+            text: 'เลือกหมวดหมู่ที่ต้องการ',
+            color: '#ffffff',
+            size: 'lg',
+            weight: 'bold',
+            margin: 'sm',
+          },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '14px',
+        spacing: 'sm',
+        contents: [
+          buildMenuButton('🏪', 'ห้างร้าน / สะดวกซื้อ', 'หมวดจุดเสี่ยง ห้างร้าน', '#c0392b'),
+          buildMenuButton('🏦', 'ธนาคาร',            'หมวดจุดเสี่ยง ธนาคาร', '#c0392b'),
+          buildMenuButton('🏥', 'ส่วนราชการ',         'หมวดจุดเสี่ยง ราชการ', '#c0392b'),
+          buildMenuButton('💎', 'ร้านทอง',            'หมวดจุดเสี่ยง ร้านทอง', '#c0392b'),
+          buildMenuButton('⛽', 'ปั๊มน้ำมัน',          'หมวดจุดเสี่ยง ปั๊มน้ำมัน', '#c0392b'),
+          buildMenuButton('🏭', 'อื่นๆ / สถานที่ทั่วไป', 'หมวดจุดเสี่ยง อื่นๆ',    '#c0392b'),
+        ],
+      },
+    },
+  };
+}
+
+/**
+ * Flex Message รายชื่อสถานที่ในแต่ละหมวดหมู่
+ */
+function buildRiskLocationMenuFlex(category) {
+  let locations = [];
+  let icon = '📍';
+  let color = '#c0392b';
+
+  if (category === 'ห้างร้าน') {
+    icon = '🏪';
+    locations = ['โลตัส', 'เซเว่นปั๊มปตทลานสัก', 'ซีเจ', 'เซเว่นตลาด', 'เซเว่นข้างโรงพยาบาลลานสัก'];
+  } else if (category === 'ธนาคาร') {
+    icon = '🏦';
+    locations = ['ธ.ก.ส. ลานสัก', 'ธนาคารออมสิน'];
+  } else if (category === 'ราชการ') {
+    icon = '🏥';
+    locations = ['โรงพยาบาลลานสัก', 'บ้านพักนายอำเภอ', 'ห้องควบคุม สภ.ลานสัก', 'เทศบาลตำบลลานสัก', 'โรงเรียนอนุบาลลานสัก'];
+  } else if (category === 'ร้านทอง') {
+    icon = '💎';
+    locations = ['ห้างทองมังกรฟ้า', 'ร้านค้าทองเยาวราชเส้น CJ', 'ห้องทองลานสักวิทยุ', 'ห้างทองเยาวราช'];
+  } else if (category === 'ปั๊มน้ำมัน') {
+    icon = '⛽';
+    locations = ['ปั๊มเอสโซ่', 'ปั๊มน้ำมันลานสักบริการ', 'ปั๊มน้ำมันบางจาก'];
+  } else if (category === 'อื่นๆ') {
+    icon = '🏭';
+    locations = ['ร้านพีพีเม็ททัลชีท', 'สวนสุขภาพลานสัก'];
+  }
+
+  return {
+    type: 'flex',
+    altText: `📍 รายชื่อจุดเสี่ยงหมวด ${category}`,
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: color,
+        paddingAll: '16px',
+        contents: [
+          { type: 'text', text: `${icon} หมวด${category}`, color: '#f5b7b1', size: 'sm' },
+          {
+            type: 'text',
+            text: 'เลือกสถานที่เพื่อรับ QR Code',
+            color: '#ffffff',
+            size: 'md',
+            weight: 'bold',
+            margin: 'sm',
+          },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '14px',
+        spacing: 'xs',
+        contents: locations.map(loc => buildMenuButton(icon, loc, `ขอคิวอาร์ ${loc}`, color)),
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            style: 'link',
+            height: 'sm',
+            action: { type: 'message', label: 'กลับไปหน้าหมวดหมู่', text: '/จุดเสี่ยง' },
+          },
+        ],
+      },
+    },
+  };
+}
+
 module.exports = {
   buildResultFlex,
   buildCarouselFlex,
@@ -1411,4 +1530,6 @@ module.exports = {
   buildDeepPhoneSearchFlex,
   buildSmartCard,
   buildLocationListFlex,
+  buildRiskCategoryMenuFlex,
+  buildRiskLocationMenuFlex,
 };

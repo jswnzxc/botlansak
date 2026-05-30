@@ -17,6 +17,8 @@ const {
   buildDeepPhoneSearchFlex,
   buildSmartCard,
   buildLocationListFlex,
+  buildRiskCategoryMenuFlex,
+  buildRiskLocationMenuFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -45,8 +47,13 @@ const client = new line.messagingApi.MessagingApiClient({
 });
 
 const app = express();
+app.use(express.static('public'));
 
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
+  // เก็บ Base URL ไว้ใช้ส่งรูปภาพ
+  if (!process.env.BASE_URL) {
+    process.env.BASE_URL = `${req.protocol}://${req.get('host')}`;
+  }
   Promise.all(req.body.events.map(handleEvent))
     .then(() => res.sendStatus(200))
     .catch(err => {
@@ -256,6 +263,36 @@ async function handleEvent(event) {
   if (userText.includes('ข้อมูลสถานี')) return replyMessage(replyToken, buildStationFlex());
   if (userText.includes('คำนวณปริมาณน้ำมัน')) return replyText(replyToken, '⛽ คำนวณปริมาณน้ำมัน 5 ปั๊มกรุณาส่งข้อมูลมาให้เพื่อคำนวณ');
   
+  // ── ระบบจุดเสี่ยง / QR Code ──
+  if (userText === '/จุดเสี่ยง' || userText === '/qrcode') {
+    return replyMessage(replyToken, buildRiskCategoryMenuFlex());
+  }
+
+  if (userText.startsWith('หมวดจุดเสี่ยง ')) {
+    const category = userText.replace('หมวดจุดเสี่ยง ', '').trim();
+    return replyMessage(replyToken, buildRiskLocationMenuFlex(category));
+  }
+
+  if (userText.startsWith('ขอคิวอาร์ ')) {
+    const locationName = userText.replace('ขอคิวอาร์ ', '').trim();
+    const baseURL = process.env.BASE_URL || '';
+    const imageURL = `${baseURL}/qrcodes/${encodeURIComponent(locationName)}.png`;
+    
+    console.log(`📸 ส่ง QR Code: ${locationName} -> ${imageURL}`);
+    
+    return client.replyMessage({
+      replyToken: replyToken,
+      messages: [
+        { type: 'text', text: `📸 นี่คือ QR Code สำหรับ: ${locationName}` },
+        {
+          type: 'image',
+          originalContentUrl: imageURL,
+          previewImageUrl:     imageURL
+        }
+      ]
+    });
+  }
+
   // คำสั่งทั้งหมด
   if (userText === '/คำสั่ง') {
     return replyMessage(replyToken, buildAllCommandsFlex(isAdmin(userId)));
