@@ -226,6 +226,12 @@ async function handleEvent(event) {
     }
 
     if (userText.startsWith('/เพิ่มแอดมิน ')) {
+      // 🛡️ จำกัดสิทธิ์: เฉพาะ Master Admin เท่านั้นที่เพิ่ม Admin ได้
+      const MASTER_ADMIN_ID = 'Ufa63dfbbf9007b97d94aced0528efb8c';
+      if (userId !== MASTER_ADMIN_ID) {
+        return replyText(replyToken, '❌ ขออภัยครับ เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์เพิ่มผู้ดูแลระบบ');
+      }
+
       const { parseAddAdminCommand, buildAddAdminConfirmFlex, addAdminInSheet } = require('./admin');
       const adminData = parseAddAdminCommand(userText);
       if (!adminData) return replyText(replyToken, '❌ รูปแบบ: /เพิ่มแอดมิน [userId] | [ชื่อ]');
