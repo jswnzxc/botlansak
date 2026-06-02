@@ -379,7 +379,7 @@ async function handleEvent(event) {
   // 2.5 ระบบค้นหา
   if (userText.length >= 2) {
     if (userText === 'ค้นหาชื่อ') {
-      return replyText(replyToken, '🔍 พิมพ์ชื่อ-นามสกุล หรือยศที่ต้องการค้นหาได้เลยครับ');
+      return replyText(replyToken, '🔍 พิมพ์ชื่อ-นามสกุลหรือเบอร์โทรที่ต้องการค้นหาได้เลยครับ');
     }
 
     // ตรวจสอบว่าเป็นการค้นหาแบบระบุหมวดหมู่หรือไม่
