@@ -274,7 +274,7 @@ function buildNotFoundFlex(query) {
 function buildWelcomeFlex() {
   return {
     type: 'flex',
-    altText: 'สวัสดีครับ ระบบสายตรวจภูธรลานสัก',
+    altText: '📋 รายการเมนู — ระบบสายตรวจภูธรลานสัก',
     contents: {
       type: 'bubble',
       size: 'mega',
@@ -284,7 +284,7 @@ function buildWelcomeFlex() {
         backgroundColor: '#1a3a6e',
         paddingAll: '20px',
         contents: [
-          { type: 'text', text: '👮 ระบบสืบค้นข้อมูล', color: '#a8c4e8', size: 'sm' },
+          { type: 'text', text: '📋 รายการเมนู', color: '#a8c4e8', size: 'sm' },
           {
             type: 'text',
             text: 'สายตรวจภูธรลานสัก',
@@ -318,7 +318,7 @@ function buildWelcomeFlex() {
           buildMenuButton('👥', 'ทำเนียบบุคลากร สภ.ลานสัก', 'ทำเนียบบุคลากร',    '#1a5276'),
           buildMenuButton('🏘️', 'ทำเนียบผู้นำตำบล',         'ทำเนียบผู้นำตำบล',  '#1d6a4a'),
           buildMenuButton('📜', 'รายการเมนู',               '/เมนู',           '#5d4037'),
-          buildMenuButton('📖', 'วิธีใช้งานระบบ',            '/คำสั่ง',          '#cc3333'),
+          buildMenuButton('📖', 'วิธีใช้งาน',                '/คำสั่ง',          '#cc3333'),
           buildMenuButton('📋', 'ตรวจสอบหมายจับ',            'ตรวจสอบหมายจับ',    '#b45309'),
           buildMenuButton('📍', 'จุดเสี่ยง / QR Code',      '/จุดเสี่ยง',        '#e67e22'),
           buildMenuButton('📞', 'ติดต่อเจ้าหน้าที่',         'ติดต่อเจ้าหน้าที่', '#555555'),
@@ -967,7 +967,7 @@ function buildAllCommandsFlex(isAdminUser) {
   const contents = [
     {
       type: 'text',
-      text: '📖 วิธีใช้งานและรายการคำสั่ง',
+      text: '📖 วิธีใช้งาน',
       weight: 'bold',
       size: 'md',
       color: '#1a3a6e',
@@ -1053,7 +1053,7 @@ function buildAllCommandsFlex(isAdminUser) {
 
   return {
     type: 'flex',
-    altText: '📋 วิธีใช้งานระบบสายตรวจภูธรลานสัก',
+    altText: '📖 วิธีใช้งาน — ระบบสายตรวจภูธรลานสัก',
     contents: {
       type: 'bubble',
       size: 'mega',

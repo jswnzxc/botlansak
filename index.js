@@ -326,6 +326,11 @@ async function handleEvent(event) {
     });
   }
 
+  // เมนูหลัก
+  if (userText === '/เมนู') {
+    return replyMessage(replyToken, buildWelcomeFlex());
+  }
+
   // คำสั่งทั้งหมด
   if (userText === '/คำสั่ง') {
     return replyMessage(replyToken, buildAllCommandsFlex(await isAdmin(userId)));
