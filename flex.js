@@ -1127,7 +1127,7 @@ function buildQuickAddFlex() {
             action: {
               type: 'message',
               label: 'Copy Template',
-              text: '/เพิ่ม ยศ ชื่อ นามสกุล | คดี | สถานะ | พื้นที่ | หมายเลขคดี',
+              text: '/เพิ่ม\nนาย/นาง/ยศ ชื่อ นามสกุล:\nคดี:\nสถานะ:\nพื้นที่:\nหมายเลขคดี:',
             },
           },
           {
@@ -1135,8 +1135,8 @@ function buildQuickAddFlex() {
             layout: 'vertical',
             spacing: 'xs',
             contents: [
-              { type: 'text', text: 'ตัวอย่าง:', size: 'xxs', color: '#aaaaaa' },
-              { type: 'text', text: '/เพิ่ม นาย สมชาย ใจดี | ลักทรัพย์ | หมายจับ | ลานสัก | 123/2566', size: 'xxs', color: '#aaaaaa', wrap: true },
+              { type: 'text', text: '💡 คำแนะนำ:', size: 'xxs', color: '#aaaaaa' },
+              { type: 'text', text: 'คัดลอกข้อความด้านบนไปกรอกข้อมูล\nระบุ นาย/นาง หรือยศ มาด้วย (ถ้าไม่ใส่ระบบจะเติม "นาย" ให้เอง)\nอันไหนไม่มีให้เว้นว่างไว้ ระบบจะใส่ "-" ให้ครับ', size: 'xxs', color: '#aaaaaa', wrap: true },
             ],
           },
         ],

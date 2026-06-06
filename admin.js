@@ -81,11 +81,14 @@ function extractName(fullName) {
       firstName = nameParts[1];
       lastName = nameParts.slice(2).join(' ') || '-';
     } else {
+      rank = 'นาย'; // เติม "นาย" เป็นค่าเริ่มต้นหากไม่ระบุยศ
       firstName = nameParts[0];
       lastName = nameParts.slice(1).join(' ');
     }
   } else if (nameParts.length === 1) {
+    rank = 'นาย'; // เติม "นาย" เป็นค่าเริ่มต้น
     firstName = nameParts[0];
+    lastName = '-';
   }
   return { rank, firstName, lastName };
 }
@@ -94,18 +97,58 @@ function extractName(fullName) {
  * Parse คำสั่ง /เพิ่ม
  */
 function parseAddCommand(text, userId) {
-  const content = text.replace(/^\/เพิ่ม\s+/, '').trim();
-  const parts = content.split('|').map(s => s.trim());
-  const { rank, firstName, lastName } = extractName(parts[0]);
+  const content = text.replace(/^\/เพิ่ม\s*/, '').trim();
+  
+  // รองรับทั้งแบบดั้งเดิม (|) และแบบใหม่ (ขึ้นบรรทัดใหม่ตามแม่แบบ)
+  let rank = '', firstName = '', lastName = '', crime = '', status = '', area = '', caseNo = '';
+
+  if (content.includes('\n') || content.includes(':')) {
+    // แบบใหม่: ใช้การค้นหาตามหัวข้อ
+    const lines = content.split('\n');
+    lines.forEach(line => {
+      const parts = line.split(':');
+      if (parts.length < 2) return;
+      const key = parts[0].trim();
+      const value = parts.slice(1).join(':').trim();
+
+      if (key.includes('ชื่อ') || key.includes('นามสกุล')) {
+        const names = extractName(value);
+        rank = names.rank;
+        firstName = names.firstName;
+        lastName = names.lastName;
+      } else if (key.includes('คดี')) {
+        crime = value;
+      } else if (key.includes('สถานะ')) {
+        status = value;
+      } else if (key.includes('พื้นที่')) {
+        area = value;
+      } else if (key.includes('หมายเลขคดี')) {
+        caseNo = value;
+      }
+    });
+  } else {
+    // แบบดั้งเดิม: ยศ ชื่อ นามสกุล | คดี | สถานะ...
+    const parts = content.split('|').map(s => s.trim());
+    const names = extractName(parts[0]);
+    rank = names.rank;
+    firstName = names.firstName;
+    lastName = names.lastName;
+    crime = parts[1] || '';
+    status = parts[2] || '';
+    area = parts[3] || '';
+    caseNo = parts[4] || '';
+  }
 
   if (!firstName) return null;
 
   return {
-    rank, firstName, lastName,
-    crime: parts[1] || '',
-    status: parts[2] || 'เฝ้าระวัง',
-    area: parts[3] || '',
-    caseNo: parts[4] || '',
+    rank: (rank || '').trim() || '-',
+    firstName: (firstName || '').trim(),
+    lastName: (lastName || '').trim() || '-',
+    crime: (crime || '').trim() || '-',
+    status: (status || '').trim() || 'เฝ้าระวัง',
+    area: (area || '').trim() || '-',
+    caseNo: (caseNo || '').trim() || '-',
     addedBy: `Admin (${userId})`,
   };
 }
