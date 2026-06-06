@@ -315,6 +315,7 @@ function buildAdminHelpFlex() {
           buildHelpItem('📋 รายชื่อผู้ต้องหา', '/รายชื่อ', '#f0fff4', '#27ae60'),
           buildHelpItem('🗑️ ลบบุคคล', '/ลบ ชื่อ นามสกุล', '#fff5f5', '#c53030'),
           buildHelpItem('✏️ แก้ไขข้อมูล', '/แก้ไข ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่', '#fffaf0', '#b45309'),
+          buildHelpItem('📢 ส่งข้อความ', '/broadcast [ข้อความ] หรือ /broadcast @ชื่อ [ข้อความ]', '#fdf2f2', '#991b1b'),
           buildHelpItem('📊 ดูระบบ', '/สถิติ, /สถานะ, /ล้างcache', '#f7fafc', '#4a5568'),
           buildHelpItem('🆔 ดู ID', '/whoami', '#fafafa', '#555555'),
           buildHelpItem('👑 เพิ่ม Admin', '/เพิ่มแอดมิน [userId] | [ชื่อ]', '#fff5f5', '#c53030'),

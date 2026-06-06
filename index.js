@@ -36,7 +36,7 @@ const {
   appendLocationRecord, blockUserInSheet, loadBlockedUsersFromSheet,
   isConfigured: isSheetConfigured 
 } = require('./sheets-writer');
-const { trackUser, broadcastToAll, getStats, buildBroadcastResultFlex } = require('./broadcast');
+const { trackUser, broadcastToAll, broadcastToTarget, getStats, buildBroadcastResultFlex } = require('./broadcast');
 const { askAI } = require('./ai');
 
 // ===== Line SDK Config =====
@@ -293,10 +293,27 @@ async function handleEvent(event) {
     }
 
     if (userText.startsWith('/broadcast ')) {
-      const msg = userText.replace('/broadcast ', '').trim();
-      await replyText(replyToken, '📤 กำลังส่งข้อความ...');
-      const res = await broadcastToAll(client, msg);
-      return client.pushMessage({ to: userId, messages: [buildBroadcastResultFlex(res, msg)] });
+      const fullText = userText.replace('/broadcast ', '').trim();
+      let res, msgToBroadcast, targetName = null;
+
+      if (fullText.startsWith('@')) {
+        const parts = fullText.split(' ');
+        targetName = parts[0].substring(1); // ลบ @ ออก
+        msgToBroadcast = parts.slice(1).join(' ').trim();
+        
+        if (!msgToBroadcast) {
+          return replyText(replyToken, '❌ กรุณาระบุข้อความหลังชื่อ: /broadcast @ชื่อ ข้อความ');
+        }
+
+        await replyText(replyToken, `📤 กำลังส่งข้อความหา "${targetName}"...`);
+        res = await broadcastToTarget(client, msgToBroadcast, targetName);
+      } else {
+        msgToBroadcast = fullText;
+        await replyText(replyToken, '📤 กำลังส่งข้อความหาทุกคน...');
+        res = await broadcastToAll(client, msgToBroadcast);
+      }
+
+      return client.pushMessage({ to: userId, messages: [buildBroadcastResultFlex(res, msgToBroadcast, targetName)] });
     }
   }
 

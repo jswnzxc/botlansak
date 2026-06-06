@@ -48,7 +48,10 @@ function getStats() {
 /**
  * สร้าง Flex Message สรุปผลการ Broadcast
  */
-function buildBroadcastResultFlex(result, previewText) {
+function buildBroadcastResultFlex(result, previewText, targetName = null) {
+  const title = targetName ? `📢 ส่งหา: ${targetName}` : '📢 ผลการ Broadcast';
+  const statusColor = result.sent > 0 ? '#27ae60' : '#e74c3c';
+  
   return {
     type: 'flex',
     altText: `📢 Broadcast สำเร็จ ${result.sent} คน`,
@@ -60,7 +63,7 @@ function buildBroadcastResultFlex(result, previewText) {
         layout: 'vertical',
         backgroundColor: '#1d6a4a',
         paddingAll: '14px',
-        contents: [{ type: 'text', text: '📢 ผลการ Broadcast', color: '#ffffff', weight: 'bold' }],
+        contents: [{ type: 'text', text: title, color: '#ffffff', weight: 'bold' }],
       },
       body: {
         type: 'box',
@@ -71,8 +74,8 @@ function buildBroadcastResultFlex(result, previewText) {
           {
             type: 'box', layout: 'horizontal',
             contents: [
-              { type: 'text', text: '✅ ส่งสำเร็จ', color: '#27ae60', weight: 'bold', flex: 1 },
-              { type: 'text', text: `${result.sent} คน`, color: '#27ae60', weight: 'bold', align: 'end' },
+              { type: 'text', text: result.notFound ? '❌ ไม่พบรายชื่อ' : '✅ ส่งสำเร็จ', color: statusColor, weight: 'bold', flex: 1 },
+              { type: 'text', text: `${result.sent} คน`, color: statusColor, weight: 'bold', align: 'end' },
             ],
           },
           { type: 'separator', margin: 'md' },
@@ -91,9 +94,46 @@ function removeFollower(userId) {
   // ในเวอร์ชันนี้เราเน้นเก็บ log ส่วนการลบออกจาก Sheets สามารถเพิ่ม batchUpdate ได้ถ้าต้องการ
 }
 
+/**
+ * ส่งข้อความ Broadcast ไปยังบุคคลที่ระบุชื่อ (displayName)
+ */
+async function broadcastToTarget(client, message, targetName) {
+  const followers = await loadFollowersFromSheet();
+  const targetFollowers = followers.filter(f => 
+    f.displayName.toLowerCase().includes(targetName.toLowerCase())
+  );
+
+  if (targetFollowers.length === 0) {
+    return { sent: 0, failed: 0, total: 0, notFound: true };
+  }
+
+  const lineMessage = typeof message === 'string'
+    ? { type: 'text', text: message }
+    : message;
+
+  let sent = 0, failed = 0;
+
+  for (const follower of targetFollowers) {
+    try {
+      await client.pushMessage({
+        to: follower.userId,
+        messages: [lineMessage],
+      });
+      sent++;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (err) {
+      console.error(`❌ ส่งหา ${follower.userId} (${follower.displayName}) ไม่ได้:`, err.message);
+      failed++;
+    }
+  }
+
+  return { sent, failed, total: targetFollowers.length };
+}
+
 module.exports = {
   trackUser,
   broadcastToAll,
+  broadcastToTarget,
   removeFollower,
   getStats,
   buildBroadcastResultFlex,
