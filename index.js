@@ -19,6 +19,7 @@ const {
   buildLocationListFlex,
   buildRiskCategoryMenuFlex,
   buildRiskLocationMenuFlex,
+  buildAllRiskLocationsMenuFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -340,7 +341,7 @@ async function handleEvent(event) {
   
   // ── ระบบจุดเสี่ยง / QR Code ──
   if (userText === '/จุดเสี่ยง' || userText === '/qrcode') {
-    return replyMessage(replyToken, buildRiskCategoryMenuFlex());
+    return replyMessage(replyToken, buildAllRiskLocationsMenuFlex());
   }
 
   if (userText.startsWith('หมวดจุดเสี่ยง ')) {

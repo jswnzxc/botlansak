@@ -318,6 +318,7 @@ function buildWelcomeFlex() {
           buildMenuButton('👥', 'ทำเนียบบุคลากร สภ.ลานสัก', 'ทำเนียบบุคลากร',    '#1a5276'),
           buildMenuButton('🏘️', 'ทำเนียบผู้นำตำบล',         'ทำเนียบผู้นำตำบล',  '#1d6a4a'),
           buildMenuButton('⛽', 'เบอร์ปั๊ม',               '/เบอร์ปั๊ม',        '#5d4037'),
+          buildMenuButton('🏍️', 'ส่งรายงานสายตรวจ',     'https://liff.line.me/YOUR_LIFF_ID', '#1a3a6e', 'uri'),
           buildMenuButton('📖', 'วิธีใช้งาน',                '/คำสั่ง',          '#cc3333'),
           buildMenuButton('📋', 'ตรวจสอบหมายจับ',            'ตรวจสอบหมายจับ',    '#b45309'),
           buildMenuButton('📍', 'จุดเสี่ยง / QR Code',      '/จุดเสี่ยง',        '#e67e22'),
@@ -1007,7 +1008,7 @@ function buildAllCommandsFlex(isAdminUser) {
     },
     {
       type: 'text',
-      text: 'พิมพ์ "/จุดเสี่ยง" เพื่อเลือกหมวดหมู่สถานที่และรับ QR Code สำหรับแสกนลงเวลาตรวจในพื้นที่ต่างๆ',
+      text: 'พิมพ์ "/จุดเสี่ยง" เพื่อเลือกสถานที่และรับ QR Code สำหรับแสกนลงเวลาตรวจในพื้นที่ต่างๆ',
       size: 'xs',
       color: '#7f8c8d',
       wrap: true,
@@ -1524,6 +1525,82 @@ function buildRiskLocationMenuFlex(category) {
   };
 }
 
+/**
+ * Flex Message รายชื่อสถานที่จุดเสี่ยงทั้งหมด (ไม่แบ่งหมวดหมู่)
+ */
+function buildAllRiskLocationsMenuFlex() {
+  const allLocations = [
+    { name: 'โลตัส', icon: '🏪' },
+    { name: 'เซเว่นปั๊มปตทลานสัก', icon: '🏪' },
+    { name: 'ซีเจ', icon: '🏪' },
+    { name: 'เซเว่นตลาด', icon: '🏪' },
+    { name: 'เซเว่นข้างโรงพยาบาลลานสัก', icon: '🏪' },
+    { name: 'ธ.ก.ส. ลานสัก', icon: '🏦' },
+    { name: 'ธนาคารออมสิน', icon: '🏦' },
+    { name: 'โรงพยาบาลลานสัก', icon: '🏥' },
+    { name: 'บ้านพักนายอำเภอ', icon: '🏥' },
+    { name: 'ห้องควบคุม สภ.ลานสัก', icon: '🏥' },
+    { name: 'เทศบาลตำบลลานสัก', icon: '🏥' },
+    { name: 'โรงเรียนอนุบาลลานสัก', icon: '🏥' },
+    { name: 'ห้างทองมังกรฟ้า', icon: '💎' },
+    { name: 'ร้านค้าทองเยาวราชเส้น CJ', icon: '💎' },
+    { name: 'ห้องทองลานสักวิทยุ', icon: '💎' },
+    { name: 'ห้างทองเยาวราช', icon: '💎' },
+    { name: 'ปั๊มเอสโซ่', icon: '⛽' },
+    { name: 'ปั๊มน้ำมันลานสักบริการ', icon: '⛽' },
+    { name: 'ปั๊มน้ำมันบางจาก', icon: '⛽' },
+    { name: 'ร้านพีพีเม็ททัลชีท', icon: '🏭' },
+    { name: 'สวนสุขภาพลานสัก', icon: '🏭' }
+  ];
+
+  const color = '#c0392b';
+
+  // แบ่งเป็น 2 ส่วนเพื่อให้ Bubble ไม่ยาวเกินไป
+  const chunk1 = allLocations.slice(0, 11);
+  const chunk2 = allLocations.slice(11);
+
+  const createBubble = (locations, pageLabel) => ({
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: color,
+      paddingAll: '16px',
+      contents: [
+        { type: 'text', text: '📍 ระบบจุดเสี่ยง / QR Code', color: '#f5b7b1', size: 'sm' },
+        {
+          type: 'text',
+          text: `เลือกสถานที่ (${pageLabel})`,
+          color: '#ffffff',
+          size: 'lg',
+          weight: 'bold',
+          margin: 'sm',
+        },
+      ],
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: '14px',
+      spacing: 'xs',
+      contents: locations.map(loc => buildMenuButton(loc.icon, loc.name, `ขอคิวอาร์ ${loc.name}`, color)),
+    },
+  });
+
+  return {
+    type: 'flex',
+    altText: '📍 เลือกสถานที่จุดเสี่ยง',
+    contents: {
+      type: 'carousel',
+      contents: [
+        createBubble(chunk1, 'หน้า 1/2'),
+        createBubble(chunk2, 'หน้า 2/2'),
+      ],
+    },
+  };
+}
+
 module.exports = {
   buildResultFlex,
   buildCarouselFlex,
@@ -1545,4 +1622,5 @@ module.exports = {
   buildLocationListFlex,
   buildRiskCategoryMenuFlex,
   buildRiskLocationMenuFlex,
+  buildAllRiskLocationsMenuFlex,
 };
