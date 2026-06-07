@@ -318,7 +318,7 @@ function buildWelcomeFlex() {
           buildMenuButton('👥', 'ทำเนียบบุคลากร สภ.ลานสัก', 'ทำเนียบบุคลากร',    '#1a5276'),
           buildMenuButton('🏘️', 'ทำเนียบผู้นำตำบล',         'ทำเนียบผู้นำตำบล',  '#1d6a4a'),
           buildMenuButton('⛽', 'เบอร์ปั๊ม',               '/เบอร์ปั๊ม',        '#5d4037'),
-          buildMenuButton('🏍️', 'ส่งรายงานสายตรวจ',     'https://liff.line.me/YOUR_LIFF_ID', '#1a3a6e', 'uri'),
+          buildMenuButton('🏍️', 'ส่งรายงานสายตรวจ',     'https://liff.line.me/2010319438-PkvEgigE', '#1a3a6e', 'uri'),
           buildMenuButton('📖', 'วิธีใช้งาน',                '/คำสั่ง',          '#cc3333'),
           buildMenuButton('📋', 'ตรวจสอบหมายจับ',            'ตรวจสอบหมายจับ',    '#b45309'),
           buildMenuButton('📍', 'จุดเสี่ยง / QR Code',      '/จุดเสี่ยง',        '#e67e22'),
