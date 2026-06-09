@@ -840,9 +840,14 @@ function buildInfoRow(icon, label, value) {
 }
 
 function buildMenuButton(icon, label, actionValue, color, type = 'message') {
-  const action = type === 'location' 
-    ? { type: 'location', label: label }
-    : { type: 'message', label: label, text: actionValue };
+  let action;
+  if (type === 'location') {
+    action = { type: 'location', label: label };
+  } else if (type === 'uri') {
+    action = { type: 'uri', label: label, uri: actionValue };
+  } else {
+    action = { type: 'message', label: label, text: actionValue };
+  }
 
   return {
     type: 'box',
