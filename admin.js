@@ -19,33 +19,50 @@ let lastCacheUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 นาที
 
 /**
- * โหลดรายชื่อ Admin ทั้งหมด (รวม ENV + Admin Sheet + User List Sheet roles)
+ * โหลดข้อมูลผู้ใช้พร้อมบทบาททั้งหมด (Cache)
  */
-async function getAllAdminIds() {
-  const now = Date.now();
-  if (now - lastCacheUpdate > CACHE_TTL) {
-    // 1. โหลดจากหน้า "รายชื่อแอดมิน" (เดิม)
-    const fromAdminSheet = await loadAdminsFromSheet();
-    
-    // 2. โหลดจากหน้า "รายชื่อผู้ใช้" และกรองคนที่มีบทบาท admin หรือ adminmaster
-    const followers = await loadFollowersFromSheet();
-    const fromUserRoles = followers
-      .filter(u => u.role === 'admin' || u.role === 'adminmaster')
-      .map(u => u.userId);
-
-    sheetAdminCache = [...new Set([...fromAdminSheet, ...fromUserRoles])];
-    lastCacheUpdate = now;
-    console.log(`👤 อัปเดตรายชื่อแอดมินรวม: ${sheetAdminCache.length} คน`);
-  }
-  return [...new Set([...ENV_ADMIN_IDS, ...sheetAdminCache])];
+let userRoleCache = new Map();
+async function refreshUserCache() {
+  const followers = await loadFollowersFromSheet();
+  const map = new Map();
+  followers.forEach(u => map.set(u.userId, u.role));
+  userRoleCache = map;
+  lastCacheUpdate = Date.now();
+  console.log(`👤 อัปเดต Cache บทบาทผู้ใช้: ${map.size} คน`);
 }
 
 /**
- * ตรวจว่าเป็น Admin หรือไม่
+ * ตรวจว่าเป็น Admin หรือไม่ (รวมทั้ง Admin และ Master Admin)
  */
 async function isAdmin(userId) {
-  const allAdmins = await getAllAdminIds();
-  return allAdmins.includes(userId);
+  if (ENV_ADMIN_IDS.includes(userId)) return true;
+  
+  const now = Date.now();
+  if (now - lastCacheUpdate > CACHE_TTL) await refreshUserCache();
+  
+  const role = userRoleCache.get(userId);
+  if (role === 'admin' || role === 'adminmaster') return true;
+  
+  // เช็คจากหน้า "รายชื่อแอดมิน" (เดิม)
+  const fromAdminSheet = await loadAdminsFromSheet();
+  if (fromAdminSheet.includes(userId)) return true;
+
+  return false;
+}
+
+/**
+ * ตรวจว่าเป็น Master Admin หรือไม่ (มีสิทธิ์ลบ/แก้ไข/บล็อก/เพิ่มแอดมิน)
+ */
+async function isMasterAdmin(userId) {
+  // 1. เช็คจาก ENV (Master สูงสุด)
+  if (ENV_ADMIN_IDS.includes(userId)) return true;
+  
+  const now = Date.now();
+  if (now - lastCacheUpdate > CACHE_TTL) await refreshUserCache();
+  
+  // 2. เช็คบทบาท adminmaster จาก Sheet
+  const role = userRoleCache.get(userId);
+  return role === 'adminmaster';
 }
 
 /**
@@ -531,7 +548,9 @@ function buildAdminRow(icon, label, value) {
 
 module.exports = {
   isAdmin,
+  isMasterAdmin,
   isAdminCommand,
+  refreshUserCache,
   parseAddCommand,
   parseDeleteCommand,
   parseEditCommand,

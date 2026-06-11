@@ -24,7 +24,7 @@ const {
 
 // ── ระบบเสริม ──
 const { 
-  isAdmin, isAdminCommand, 
+  isAdmin, isMasterAdmin, isAdminCommand, refreshUserCache,
   parseAddCommand, parseDeleteCommand, parseEditCommand,
   parseAddAdminCommand, parseBlockCommand,
   buildAddConfirmFlex, buildDeleteConfirmFlex, buildEditConfirmFlex, 
@@ -229,6 +229,7 @@ async function handleEvent(event) {
       }
 
       if (userText.startsWith('/ลบ ')) {
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถลบข้อมูลได้ครับ');
         const person = parseDeleteCommand(userText);
         if (!person) return replyText(replyToken, '❌ รูปแบบ: /ลบ ชื่อ นามสกุล');
         const result = await deletePerson(person.firstName, person.lastName);
@@ -237,6 +238,7 @@ async function handleEvent(event) {
       }
 
       if (userText.startsWith('/แก้ไข ')) {
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถแก้ไขข้อมูลได้ครับ');
         const editData = parseEditCommand(userText);
         if (!editData) return replyText(replyToken, '❌ รูปแบบ: /แก้ไข ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่');
         const result = await updatePersonField(editData.firstName, editData.lastName, editData.field, editData.newValue);
@@ -245,12 +247,12 @@ async function handleEvent(event) {
       }
 
       if (userText.startsWith('/เพิ่มแอดมิน ')) {
-        const MASTER_ADMIN_ID = 'Ufa63dfbbf9007b97d94aced0528efb8c';
-        if (userId !== MASTER_ADMIN_ID) return replyText(replyToken, '❌ ขออภัยครับ เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์เพิ่มผู้ดูแลระบบ');
-        const { parseAddAdminCommand, buildAddAdminConfirmFlex, addAdminInSheet } = require('./admin');
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์เพิ่มผู้ดูแลระบบ');
+        const { addAdminInSheet } = require('./sheets-writer');
         const adminData = parseAddAdminCommand(userText);
         if (!adminData) return replyText(replyToken, '❌ รูปแบบ: /เพิ่มแอดมิน [userId] | [ชื่อ]');
         const result = await addAdminInSheet(adminData.targetUserId, adminData.displayName, `Admin (${userId})`);
+        if (result.success) refreshUserCache();
         return replyMessage(replyToken, buildAddAdminConfirmFlex(adminData, result.success, result.message));
       }
 
@@ -264,8 +266,7 @@ async function handleEvent(event) {
       }
 
       if (userText.startsWith('/block ')) {
-        const MASTER_ADMIN_ID = 'Ufa63dfbbf9007b97d94aced0528efb8c';
-        if (userId !== MASTER_ADMIN_ID) return replyText(replyToken, '❌ ขออภัยครับ เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์ปิดกั้นการใช้งานผู้ใช้');
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์ปิดกั้นการใช้งานผู้ใช้');
         const targetId = parseBlockCommand(userText);
         if (!targetId) return replyText(replyToken, '❌ รูปแบบ: /block [userId]');
         const followers = await loadFollowersFromSheet();
@@ -278,6 +279,9 @@ async function handleEvent(event) {
       if (userText.startsWith('/เพิ่ม')) {
         const args = userText.replace('/เพิ่ม', '').trim();
         if (!args) return replyMessage(replyToken, buildQuickAddFlex());
+        
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถเพิ่มรายชื่อใหม่ได้ครับ');
+
         const person = parseAddCommand(userText, userId);
         if (!person) return replyText(replyToken, '❌ รูปแบบ: /เพิ่ม ยศ ชื่อ นามสกุล | คดี | สถานะ...');
         try {
