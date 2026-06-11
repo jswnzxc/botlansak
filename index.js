@@ -192,10 +192,11 @@ async function handleEvent(event) {
     }
   }
 
-  // ตรวจสอบสิทธิ์
-  const userRole = await getUserRole(userId);
-  const isUserAdmin = await isAdmin(userId);
-  const isVerified = isUserAdmin || userRole === 'staff';
+  // ตรวจสอบสิทธิ์ (อัปเดตค่าเผื่อมีการเปลี่ยนแปลงสิทธิ์ใน turn นี้)
+  // หมายเหตุ: ไม่ต้องใช้ const ซ้ำเพราะประกาศไว้ต้นฟังก์ชันแล้ว
+  // userRole = await getUserRole(userId);
+  // isUserAdmin = await isAdmin(userId);
+  // isVerified = isUserAdmin || userRole === 'staff';
 
   // ─────────────────────────────────────────────────────────
   // [1] คำสั่ง Admin
