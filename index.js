@@ -348,23 +348,24 @@ async function handleEvent(event) {
       
       // ── แจ้งเตือนส่งรายงานจุดเสี่ยง (1.5 ชม. หลังจากขอดู QR) ──
       if (userId) {
-        if (riskReminderTimers.has(userId)) {
-          clearTimeout(riskReminderTimers.get(userId));
+        // หากไม่มี Timer อยู่ ให้สร้างใหม่ (นับจากจุดแรกที่กด)
+        // หากมีอยู่แล้ว ให้ปล่อยให้นับเวลาเดิมต่อไปจนจบ (ไม่รีเซ็ต)
+        if (!riskReminderTimers.has(userId)) {
+          const timer = setTimeout(async () => {
+            try {
+              await client.pushMessage({
+                to: userId,
+                messages: [{ type: 'text', text: '!!!!!อย่าลืมส่งรายงานจุดเสี่ยงนะครับ' }]
+              });
+              console.log(`🔔 Reminder sent to ${userId} for location: ${locationName}`);
+            } catch (err) {
+              console.error(`❌ Failed to send reminder to ${userId}:`, err.message);
+            } finally {
+              riskReminderTimers.delete(userId);
+            }
+          }, 90 * 60 * 1000); // 90 mins
+          riskReminderTimers.set(userId, timer);
         }
-        const timer = setTimeout(async () => {
-          try {
-            await client.pushMessage({
-              to: userId,
-              messages: [{ type: 'text', text: '!!!!!อย่าลืมส่งรายงานจุดเสี่ยงนะครับ' }]
-            });
-            console.log(`🔔 Reminder sent to ${userId} for location: ${locationName}`);
-          } catch (err) {
-            console.error(`❌ Failed to send reminder to ${userId}:`, err.message);
-          } finally {
-            riskReminderTimers.delete(userId);
-          }
-        }, 90 * 60 * 1000); // 90 mins
-        riskReminderTimers.set(userId, timer);
       }
       
       return client.replyMessage({
