@@ -124,9 +124,25 @@ async function handleEvent(event) {
       if (userId) {
         try {
           const profile = await client.getProfile(userId);
-          trackUser(userId, profile.displayName);
-          await trackUserInSheet(userId, profile.displayName);
-          const welcomeText = `👋 สวัสดีครับคุณ ${profile.displayName}!\nยินดีต้อนรับสู่ระบบสายตรวจภูธรลานสักครับ\n\nนี่คือรายการคำสั่งทั้งหมดที่ท่านสามารถใช้งานได้ในตอนนี้ครับ:`;
+          const displayName = profile.displayName || 'ไม่ระบุชื่อ';
+          const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+          
+          trackUser(userId, displayName);
+          await trackUserInSheet(userId, displayName);
+          
+          // แจ้งเตือน Master Admin
+          const MASTER_ADMIN_ID = (process.env.ADMIN_LINE_IDS || '').split(',')[0]; 
+          if (MASTER_ADMIN_ID) {
+            const adminNotifyText = `🔔 มีสมาชิกใหม่เข้ามาใช้งานบอทสายตรวจ AI\n\n🆔 User ID: ${userId}\n👤 Display Name: ${displayName}\n📅 Date Added: ${now}`;
+            try {
+              await client.pushMessage({
+                to: MASTER_ADMIN_ID,
+                messages: [{ type: 'text', text: adminNotifyText }]
+              });
+            } catch (err) { console.error('Notify admin error:', err.message); }
+          }
+
+          const welcomeText = `👋 สวัสดีครับคุณ ${displayName}!\nยินดีต้อนรับสู่ระบบสายตรวจภูธรลานสักครับ\n\nนี่คือรายการคำสั่งทั้งหมดที่ท่านสามารถใช้งานได้ในตอนนี้ครับ:`;
           return client.replyMessage({
             replyToken: replyToken,
             messages: [
