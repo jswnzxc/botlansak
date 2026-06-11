@@ -969,7 +969,7 @@ function buildFuelStationFlex() {
   };
 }
 
-function buildAllCommandsFlex(isAdminUser) {
+function buildAllCommandsFlex(isAdminUser, isVerified = false) {
   const contents = [
     {
       type: 'text',
@@ -987,61 +987,89 @@ function buildAllCommandsFlex(isAdminUser) {
       margin: 'sm',
     },
     { type: 'separator', margin: 'md' },
-    {
-      type: 'text',
-      text: '🔍 การสืบค้นข้อมูล',
-      weight: 'bold',
-      size: 'sm',
-      margin: 'md',
-      color: '#2c3e50',
-    },
-    {
-      type: 'text',
-      text: '• ค้นหาบุคคล: พิมพ์ "ชื่อ" หรือ "นามสกุล" ได้ทันที เช่น "สมชาย" หรือ "ใจดี"\n• ค้นหาเบอร์: พิมพ์เบอร์โทร 10 หลัก เพื่อดูเครือข่ายและประวัติในระบบ\n• ทำเนียบตำรวจ: พิมพ์ "ตำรวจ" หรือเลือกจากเมนู\n• ทำเนียบผู้นำ: พิมพ์ "ผู้นำตำบล" หรือ "ผู้ใหญ่บ้าน"',
-      size: 'xs',
-      color: '#7f8c8d',
-      wrap: true,
-      margin: 'sm',
-    },
-    {
-      type: 'text',
-      text: '📍 ระบบจุดเสี่ยง (QR Code)',
-      weight: 'bold',
-      size: 'sm',
-      margin: 'md',
-      color: '#2c3e50',
-    },
-    {
-      type: 'text',
-      text: 'พิมพ์ "/จุดเสี่ยง" เพื่อเลือกสถานที่และรับ QR Code สำหรับแสกนลงเวลาตรวจในพื้นที่ต่างๆ',
-      size: 'xs',
-      color: '#7f8c8d',
-      wrap: true,
-      margin: 'sm',
-    },
-    {
-      type: 'text',
-      text: '📋 คำสั่งควบคุมระบบ',
-      weight: 'bold',
-      size: 'sm',
-      margin: 'md',
-      color: '#2c3e50',
-    },
-    {
-      type: 'text',
-      text: '• /เมนู : แสดงเมนูหลักแบบปุ่มกด\n• /คำสั่ง : แสดงวิธีใช้งานนี้\n• /เบอร์ปั๊ม : ดูเบอร์โทรศัพท์ปั๊มน้ำมันในพื้นที่',
-      size: 'xs',
-      color: '#7f8c8d',
-      wrap: true,
-      margin: 'sm',
-    },
   ];
+
+  if (!isVerified) {
+    contents.push({
+      type: 'text',
+      text: '🔐 การเข้าถึงข้อมูล (สำหรับเจ้าหน้าที่)',
+      weight: 'bold',
+      size: 'sm',
+      margin: 'md',
+      color: '#c0392b',
+    });
+    contents.push({
+      type: 'text',
+      text: 'หากท่านเป็นเจ้าหน้าที่ กรุณายืนยันตัวตนเพื่อเข้าถึงระบบสืบค้นข้อมูล:\nพิมพ์: /verify [รหัสผ่าน]',
+      size: 'xs',
+      color: '#7f8c8d',
+      wrap: true,
+      margin: 'sm',
+    });
+    contents.push({ type: 'separator', margin: 'md' });
+  }
+
+  contents.push({
+    type: 'text',
+    text: '🔍 การสืบค้นข้อมูล',
+    weight: 'bold',
+    size: 'sm',
+    margin: 'md',
+    color: '#2c3e50',
+  });
+  
+  const searchDesc = isVerified 
+    ? '• ค้นหาบุคคล: พิมพ์ "ชื่อ" หรือ "นามสกุล" ได้ทันที\n• ค้นหาเบอร์: พิมพ์เบอร์โทร 10 หลัก\n• ทำเนียบตำรวจ: พิมพ์ "ตำรวจ"\n• ทำเนียบผู้นำ: พิมพ์ "ผู้นำตำบล"'
+    : '• ทำเนียบผู้นำ: พิมพ์ "ผู้นำตำบล" (เข้าถึงได้ทุกคน)\n• ค้นหาเบอร์เชิงลึก: พิมพ์ "ค้นหาเบอร์เชิงลึก 08XXXXXXXX"';
+
+  contents.push({
+    type: 'text',
+    text: searchDesc,
+    size: 'xs',
+    color: '#7f8c8d',
+    wrap: true,
+    margin: 'sm',
+  });
+
+  contents.push({
+    type: 'text',
+    text: '📍 ระบบจุดเสี่ยง (QR Code)',
+    weight: 'bold',
+    size: 'sm',
+    margin: 'md',
+    color: '#2c3e50',
+  });
+  contents.push({
+    type: 'text',
+    text: 'พิมพ์ "/จุดเสี่ยง" เพื่อเลือกสถานที่และรับ QR Code',
+    size: 'xs',
+    color: '#7f8c8d',
+    wrap: true,
+    margin: 'sm',
+  });
+
+  contents.push({
+    type: 'text',
+    text: '📋 คำสั่งทั่วไป',
+    weight: 'bold',
+    size: 'sm',
+    margin: 'md',
+    color: '#2c3e50',
+  });
+  contents.push({
+    type: 'text',
+    text: '• /เมนู : แสดงเมนูหลัก\n• /คำสั่ง : แสดงวิธีใช้งานนี้\n• /เบอร์ปั๊ม : ดูเบอร์โทรศัพท์ปั๊มน้ำมัน',
+    size: 'xs',
+    color: '#7f8c8d',
+    wrap: true,
+    margin: 'sm',
+  });
 
   if (isAdminUser) {
     contents.push({ type: 'separator', margin: 'lg' });
     contents.push({
       type: 'text',
-      text: '🔐 ส่วนเจ้าหน้าที่ (Admin Only)',
+      text: '👑 ส่วนผู้ดูแลระบบ (Admin Only)',
       weight: 'bold',
       size: 'sm',
       margin: 'md',

@@ -199,6 +199,7 @@ async function updatePersonField(firstName, lastName, field, newValue) {
 
 /**
  * บันทึกผู้ใช้ลง Google Sheets เพื่อไม่ให้ข้อมูลหายเมื่อ Restart
+ * ปรับปรุง: เพิ่มคอลัมน์ "บทบาท" (Role)
  */
 async function trackUserInSheet(userId, displayName) {
   const sheets = getSheetsClient();
@@ -211,10 +212,11 @@ async function trackUserInSheet(userId, displayName) {
     if (existingIds.includes(userId)) return false;
 
     const now = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
-    const row = [userId, displayName || '', now];
+    // A: userId, B: displayName, C: timestamp, D: role (default: public)
+    const row = [userId, displayName || '', now, 'public'];
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_USERS}!A:C`,
+      range: `${SHEET_USERS}!A:D`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [row] },
@@ -234,14 +236,62 @@ async function loadFollowersFromSheet() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_USERS}!A:B`,
+      range: `${SHEET_USERS}!A:D`,
     });
     const rows = response.data.values || [];
-    return rows.slice(1).map(row => ({ userId: row[0], displayName: row[1] || '' }));
+    // A: userId, B: displayName, C: timestamp, D: role
+    return rows.slice(1).map(row => ({ 
+      userId: row[0], 
+      displayName: row[1] || '',
+      role: row[3] || 'public'
+    }));
   } catch (err) {
     console.error('Error loading followers:', err.message);
     return [];
   }
+}
+
+/**
+ * อัปเดตบทบาทผู้ใช้
+ */
+async function updateUserRole(userId, newRole) {
+  const sheets = getSheetsClient();
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!A:A`,
+    });
+    const rows = response.data.values || [];
+    let rowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === userId) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) return { success: false, message: 'ไม่พบผู้ใช้นี้ในระบบ' };
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!D${rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[newRole]] },
+    });
+    return { success: true };
+  } catch (err) {
+    console.error('Error updating user role:', err.message);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * ตรวจสอบบทบาทผู้ใช้
+ */
+async function getUserRole(userId) {
+  const followers = await loadFollowersFromSheet();
+  const user = followers.find(f => f.userId === userId);
+  return user ? user.role : 'public';
 }
 
 /**

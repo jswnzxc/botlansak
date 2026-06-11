@@ -35,6 +35,7 @@ const {
   appendWatchlistPerson, deletePerson, updatePersonField,
   trackUserInSheet, loadFollowersFromSheet,
   appendLocationRecord, blockUserInSheet, loadBlockedUsersFromSheet,
+  getUserRole, updateUserRole,
   isConfigured: isSheetConfigured 
 } = require('./sheets-writer');
 const { trackUser, broadcastToAll, broadcastToTarget, getStats, buildBroadcastResultFlex } = require('./broadcast');
@@ -71,6 +72,8 @@ app.post('/webhook', line.middleware(lineConfig), (req, res) => {
 app.get('/', (_, res) => res.send('✅ Bot-Score ลานสัก Online'));
 
 // ===== Event Handler หลัก =====
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || '1234'; // รหัสผ่านสำหรับเจ้าหน้าที่
+
 async function handleEvent(event) {
   const userId   = event.source?.userId;
   const groupId  = event.source?.groupId;
@@ -78,6 +81,11 @@ async function handleEvent(event) {
   const sourceId = groupId || roomId || userId; // ID สำหรับส่งข้อความกลับ
   const replyToken = event.replyToken;
   const isGroup    = event.source.type === 'group' || event.source.type === 'room';
+
+  // ตรวจสอบสิทธิ์เบื้องต้น
+  const userRole = userId ? await getUserRole(userId) : 'public';
+  const isUserAdmin = userId ? await isAdmin(userId) : false;
+  const isVerified = isUserAdmin || userRole === 'staff';
 
   // ── ตรวจสอบการปิดกั้น (Block) ──
   if (userId) {
@@ -99,6 +107,8 @@ async function handleEvent(event) {
       try {
         const profile = await client.getProfile(userId);
         trackUser(userId, profile.displayName);
+        // บันทึกลง Sheet (ถ้ายังไม่มี)
+        await trackUserInSheet(userId, profile.displayName);
         
         // ส่งข้อความต้อนรับพร้อมรายการคำสั่งทั้งหมด
         const welcomeText = `👋 สวัสดีครับคุณ ${profile.displayName}!\nยินดีต้อนรับสู่ระบบสายตรวจภูธรลานสักครับ\n\nนี่คือรายการคำสั่งทั้งหมดที่ท่านสามารถใช้งานได้ในตอนนี้ครับ:`;
@@ -107,7 +117,7 @@ async function handleEvent(event) {
           replyToken: replyToken,
           messages: [
             { type: 'text', text: welcomeText },
-            buildAllCommandsFlex(await isAdmin(userId))
+            buildAllCommandsFlex(await isAdmin(userId), isVerified)
           ]
         });
       } catch (err) { console.error('Follow error:', err); }
@@ -155,34 +165,37 @@ async function handleEvent(event) {
 
   console.log(`📩 [${event.source.type}] From: ${userId || 'unknown'} Text: "${userText}"`);
 
-  // ─────────────────────────────────────────────────────────
-  // [Extreme Silence] กรองข้อความสำหรับแชทกลุ่ม
-  // ─────────────────────────────────────────────────────────
-  if (isGroup) {
-    const isExplicitAdmin = userText.startsWith('/');
-    const isExplicitSearch = /^(ค้นหา|ตรวจสอบ|เช็ค|ส่อง|check|search)/i.test(userText) || /^หา(\s+|$)/.test(userText);
-    const isPhone = /^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''));
-    const isMentionBot = userText.includes('บอท') || userText.toLowerCase().includes('bot');
-    const isMainKeywords = [
-      'ทำเนียบบุคลากร', 'ทำเนียบผู้นำตำบล', 'ผู้นำตำบล', 
-      'บุคลากร', 'ตำรวจ', 'เว็บไซต์', 'ข้อมูลสถานี', 
-      'เมนู', 'สวัสดี', 'เริ่ม', 'help', 'รีเฟรช',
-      'รายการสถานที่', 'คำสั่ง', 'จุดเสี่ยง'
-    ].some(k => userText === k || userText.startsWith(k + ' '));
-
-    // ถ้าไม่ตรงตามเงื่อนไขเป๊ะๆ นี้ "ห้ามตอบเด็ดขาด" ในกลุ่ม
-    if (!isExplicitAdmin && !isExplicitSearch && !isPhone && !isMentionBot && !isMainKeywords) {
-      return; 
-    }
-  }
-
   // บันทึกผู้ใช้
   if (userId) {
     try {
       const profile = await client.getProfile(userId);
       trackUser(userId, profile.displayName);
-    } catch { trackUser(userId, ''); }
+      // บันทึกลง Sheet (ถ้ายังไม่มี)
+      await trackUserInSheet(userId, profile.displayName);
+    } catch { 
+      if (userId) await trackUserInSheet(userId, '');
+    }
   }
+
+  // ── [เพิ่ม] ระบบยืนยันตัวตน ──
+  if (userText.startsWith('/verify ')) {
+    const password = userText.replace('/verify ', '').trim();
+    if (password === STAFF_PASSWORD) {
+      const result = await updateUserRole(userId, 'staff');
+      if (result.success) {
+        return replyText(replyToken, '✅ ยืนยันตัวตนสำเร็จ! ท่านได้รับสิทธิ์ "เจ้าหน้าที่ (Staff)" เรียบร้อยแล้วครับ');
+      } else {
+        return replyText(replyToken, '❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      }
+    } else {
+      return replyText(replyToken, '❌ รหัสผ่านไม่ถูกต้อง');
+    }
+  }
+
+  // ตรวจสอบสิทธิ์
+  const userRole = await getUserRole(userId);
+  const isUserAdmin = await isAdmin(userId);
+  const isVerified = isUserAdmin || userRole === 'staff';
 
   // ─────────────────────────────────────────────────────────
   // [1] คำสั่ง Admin
@@ -321,9 +334,27 @@ async function handleEvent(event) {
   }
 
   // ─────────────────────────────────────────────────────────
-  // [2] คำสั่งทั่วไป / ค้นหา
+  // [2] คำสั่งทั่วไป / ค้นหา (Gated Access)
   // ─────────────────────────────────────────────────────────
   
+  // รายการคำสั่งที่ "ประชาชน" (Public) เข้าถึงได้
+  const publicKeywords = [
+    'สวัสดี', 'hello', 'hi', 'หวัดดี', 'เริ่ม', 'เมนู', 'help', 'วิธีใช้', '/เมนู', '/คำสั่ง',
+    'เว็บไซต์', 'ข้อมูลสถานี', 'แจ้งเหตุ', 'ติดต่อ', '/เบอร์โทรน้ำมัน', '/เบอร์ปั๊ม', '/เบอร์น้ำมัน',
+    'ผู้นำตำบล', 'ผู้ใหญ่บ้าน', 'กำนัน', 'ทำเนียบผู้นำตำบล'
+  ];
+  
+  const isPublicCommand = publicKeywords.some(w => userText.toLowerCase().includes(w));
+  const isSearchCommand = userText.length >= 2 || /^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''));
+
+  // ถ้าไม่ใช่คำสั่งสาธารณะ ไม่ใช่การค้นหา และยังไม่ได้รับสิทธิ์ ให้แจ้งเตือน
+  if (!isPublicCommand && !isVerified && !isAdminCommand(userText) && !isSearchCommand) {
+    if (!userText.startsWith('ค้นหาเบอร์เชิงลึก')) {
+      console.log(`🔒 Blocked sensitive command from unverified user: ${userId}`);
+      return replyText(replyToken, '🔒 ข้อมูลส่วนนี้จำกัดเฉพาะ "เจ้าหน้าที่" เท่านั้นครับ\n\nหากท่านเป็นเจ้าหน้าที่ กรุณาพิมพ์:\n/verify [รหัสผ่าน]\nเพื่อรับสิทธิ์เข้าถึงข้อมูลครับ');
+    }
+  }
+
   if (userText.includes('ทำเนียบบุคลากร') || userText === 'ตำรวจ') {
     return replyMessage(replyToken, buildPersonnelMenuFlex());
   }
@@ -404,7 +435,7 @@ async function handleEvent(event) {
 
   // คำสั่งทั้งหมด
   if (userText === '/คำสั่ง') {
-    return replyMessage(replyToken, buildAllCommandsFlex(await isAdmin(userId)));
+    return replyMessage(replyToken, buildAllCommandsFlex(await isAdmin(userId), isVerified));
   }
 
   // เบอร์โทรศัพท์ปั๊มน้ำมัน
@@ -478,6 +509,19 @@ async function handleEvent(event) {
       else results = await searchByName(searchQuery);
     } else {
       results = await searchByName(searchQuery);
+    }
+
+    // [เพิ่ม] กรองข้อมูลสำหรับประชาชน: เห็นได้เฉพาะ "ผู้นำตำบล"
+    if (!isVerified) {
+      results = results.filter(p => p.sheetType === 'leader');
+      
+      // ถ้าค้นหาแล้วเจอแต่ข้อมูลที่ถูกบล็อก (ตำรวจ/ผู้ต้องหา) ให้แจ้งเตือนสิทธิ์
+      if (results.length === 0) {
+        const allResults = await searchByName(searchQuery);
+        if (allResults.length > 0) {
+          return replyText(replyToken, '🔒 พบข้อมูลในระบบ แต่ท่านไม่มีสิทธิ์เข้าถึง (จำกัดเฉพาะเจ้าหน้าที่)\n\nหากท่านเป็นเจ้าหน้าที่ กรุณายืนยันตัวตนด้วยคำสั่ง:\n/verify [รหัสผ่าน]');
+        }
+      }
     }
 
     // [แก้ไข] กรองผลลัพธ์: ถ้าเลือกจากเมนูให้กรองเข้มงวด แต่ถ้า "ค้นหา" เองให้หาจากทุกหน้า
