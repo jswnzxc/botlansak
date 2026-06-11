@@ -229,7 +229,7 @@ async function handleEvent(event) {
   if (isAdminCommand(userText)) {
     if (userText === '/whoami') return replyText(replyToken, `🆔 User ID: ${userId}`);
     if (!currentAdmin) return replyText(replyToken, '🔒 เฉพาะ Admin เท่านั้นครับ');
-
+    // ... (rest of admin logic remains same)
     if (userText === '/adminhelp') return replyMessage(replyToken, buildAdminHelpFlex());
     if (userText === '/ล้างcache') { clearCache(); return replyText(replyToken, '🔄 ล้าง Cache เรียบร้อยครับ'); }
     
@@ -309,7 +309,6 @@ async function handleEvent(event) {
       const targetId = parseBlockCommand(userText);
       if (!targetId) return replyText(replyToken, '❌ รูปแบบ: /block [userId]');
       
-      // หาชื่อผู้ใช้จากรายการที่มีอยู่
       const followers = await loadFollowersFromSheet();
       const user = followers.find(f => f.userId === targetId);
       const displayName = user ? user.displayName : 'ไม่ทราบชื่อ';
@@ -339,13 +338,9 @@ async function handleEvent(event) {
 
       if (fullText.startsWith('@')) {
         const parts = fullText.split(' ');
-        targetName = parts[0].substring(1); // ลบ @ ออก
+        targetName = parts[0].substring(1); 
         msgToBroadcast = parts.slice(1).join(' ').trim();
-        
-        if (!msgToBroadcast) {
-          return replyText(replyToken, `❌ กรุณาระบุข้อความหลังชื่อ: ${cmd}@ชื่อ ข้อความ`);
-        }
-
+        if (!msgToBroadcast) return replyText(replyToken, `❌ กรุณาระบุข้อความหลังชื่อ: ${cmd}@ชื่อ ข้อความ`);
         await replyText(replyToken, `📤 กำลังส่งข้อความหา "${targetName}"${isMenuBroadcast ? ' (+ปุ่มเมนู)' : ''}...`);
         res = await broadcastToTarget(client, msgToBroadcast, targetName, isMenuBroadcast);
       } else {
@@ -353,34 +348,16 @@ async function handleEvent(event) {
         await replyText(replyToken, `📤 กำลังส่งข้อความหาทุกคน${isMenuBroadcast ? ' (+ปุ่มเมนู)' : ''}...`);
         res = await broadcastToAll(client, msgToBroadcast, isMenuBroadcast);
       }
-
       return client.pushMessage({ to: userId, messages: [buildBroadcastResultFlex(res, msgToBroadcast, targetName)] });
     }
   }
 
   // ─────────────────────────────────────────────────────────
-  // [2] คำสั่งทั่วไป / ค้นหา (Gated Access)
+  // [2] คำสั่งทั่วไป (เข้าถึงได้ทุกคนตามปกติ)
   // ─────────────────────────────────────────────────────────
-  
-  // รายการคำสั่งที่ "ประชาชน" (Public) เข้าถึงได้
-  const publicKeywords = [
-    'สวัสดี', 'hello', 'hi', 'หวัดดี', 'เริ่ม', 'เมนู', 'help', 'วิธีใช้', '/เมนู', '/คำสั่ง',
-    'เว็บไซต์', 'ข้อมูลสถานี', 'แจ้งเหตุ', 'ติดต่อ', '/เบอร์โทรน้ำมัน', '/เบอร์ปั๊ม', '/เบอร์น้ำมัน',
-    'ผู้นำตำบล', 'ผู้ใหญ่บ้าน', 'กำนัน', 'ทำเนียบผู้นำตำบล'
-  ];
-  
-  const isPublicCommand = publicKeywords.some(w => userText.toLowerCase().includes(w));
-  const isSearchCommand = userText.length >= 2 || /^(0[0-9]{8,9})$/.test(userText.replace(/\D/g, ''));
-
-  // ถ้าไม่ใช่คำสั่งสาธารณะ ไม่ใช่การค้นหา และยังไม่ได้รับสิทธิ์ ให้แจ้งเตือน
-  if (!isPublicCommand && !currentVerified && !isAdminCommand(userText) && !isSearchCommand) {
-    if (!userText.startsWith('ค้นหาเบอร์เชิงลึก')) {
-      console.log(`🔒 Blocked sensitive command from unverified user: ${userId}`);
-      return replyText(replyToken, '🔒 ข้อมูลส่วนนี้จำกัดเฉพาะ "เจ้าหน้าที่" เท่านั้นครับ\n\nหากท่านเป็นเจ้าหน้าที่ กรุณาพิมพ์:\n/verify [รหัสผ่าน]\nเพื่อรับสิทธิ์เข้าถึงข้อมูลครับ');
-    }
-  }
 
   if (userText.includes('ทำเนียบบุคลากร') || userText === 'ตำรวจ') {
+    if (!currentVerified) return replyText(replyToken, '🔒 ข้อมูลบุคลากรจำกัดเฉพาะ "เจ้าหน้าที่" เท่านั้นครับ\n\nหากท่านเป็นเจ้าหน้าที่ กรุณายืนยันตัวตนด้วยคำสั่ง:\n/verify [รหัสผ่าน]');
     return replyMessage(replyToken, buildPersonnelMenuFlex());
   }
   
@@ -395,12 +372,12 @@ async function handleEvent(event) {
 
   if (userText.includes('เว็บไซต์')) return replyMessage(replyToken, buildWebsiteFlex());
   if (userText.includes('ข้อมูลสถานี')) return replyMessage(replyToken, buildStationFlex());
-  if (userText.includes('คำนวณปริมาณน้ำมัน')) return replyText(replyToken, '⛽ คำนวณปริมาณน้ำมัน 5 ปั๊มกรุณาส่งข้อมูลมาให้เพื่อคำนวณ');
   
-  // ── ระบบจุดเสี่ยง / QR Code ──
   if (userText === '/จุดเสี่ยง' || userText === '/qrcode') {
+    if (!currentVerified) return replyText(replyToken, '🔒 ระบบจุดเสี่ยงจำกัดเฉพาะ "เจ้าหน้าที่" เท่านั้นครับ');
     return replyMessage(replyToken, buildAllRiskLocationsMenuFlex());
   }
+
 
   if (userText.startsWith('หมวดจุดเสี่ยง ')) {
     const category = userText.replace('หมวดจุดเสี่ยง ', '').trim();
