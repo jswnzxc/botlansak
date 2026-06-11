@@ -51,7 +51,7 @@ async function appendLocationRecord(locationData, userName) {
  * สร้าง Google Sheets client ด้วย Service Account
  */
 function getSheetsClient() {
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+  let privateKey = process.env.GOOGLE_PRIVATE_KEY || process.env.GGOOGLE_PRIVATE_KEY || '';
   
   // 1. จัดการเรื่อง \n ที่อาจจะถูกแก้เป็นตัวอักษรธรรมดา
   privateKey = privateKey.replace(/\\n/g, '\n');
