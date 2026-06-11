@@ -84,7 +84,8 @@ function isAdminCommand(text) {
          text.startsWith('/เพิ่มแอดมิน') ||
          text.startsWith('/ดักไอพี') ||
          text.startsWith('/block') ||
-         text.startsWith('/รายชื่อผู้ใช้');
+         text.startsWith('/รายชื่อผู้ใช้') ||
+         text.startsWith('/บทบาท');
 }
 
 /**
@@ -393,6 +394,7 @@ function buildAdminHelpFlex() {
           buildHelpItem('🚫 ปิดกั้นผู้ใช้', '/block [userId]', '#fff5f5', '#c53030'),
           buildHelpItem('👥 รายชื่อผู้ใช้', '/รายชื่อผู้ใช้', '#f0f4ff', '#1a3a6e'),
           buildHelpItem('🌐 ดักไอพี', '/ดักไอพี', '#f0f4ff', '#1a3a6e'),
+          buildHelpItem('👥 ตรวจสอบบทบาท', '/บทบาท', '#f0f4ff', '#1a3a6e'),
         ],
       },
     },
@@ -525,6 +527,64 @@ function buildUserListFlex(users) {
   };
 }
 
+/**
+ * สร้าง Flex Message แสดงรายชื่อผู้ใช้พร้อมบทบาท (สำหรับ Master Admin)
+ */
+function buildUserRoleListFlex(users) {
+  const items = users.slice(-25).reverse().map(u => ({
+    type: 'box', layout: 'horizontal', paddingAll: '8px', margin: 'sm', backgroundColor: '#f8f9fa', cornerRadius: '8px',
+    contents: [
+      {
+        type: 'box', layout: 'vertical', flex: 3,
+        contents: [
+          { type: 'text', text: u.displayName || 'ไม่ระบุชื่อ', weight: 'bold', size: 'sm', wrap: true },
+          { type: 'text', text: `ID: ${u.userId}`, color: '#888888', size: 'xxs', wrap: true },
+        ],
+      },
+      {
+        type: 'box', layout: 'vertical', flex: 2, justifyContent: 'center',
+        contents: [
+          { 
+            type: 'text', 
+            text: u.role === 'adminmaster' ? '👑 Master' : (u.role === 'admin' ? '👮 Admin' : '👥 People'), 
+            color: u.role === 'adminmaster' ? '#e67e22' : (u.role === 'admin' ? '#1a5276' : '#888888'), 
+            size: 'xs', weight: 'bold', align: 'end' 
+          },
+        ],
+      },
+    ],
+  }));
+
+  if (users.length === 0) {
+    items.push({ type: 'text', text: 'ไม่พบข้อมูลผู้ใช้งาน', align: 'center', margin: 'md', color: '#888888' });
+  }
+
+  return {
+    type: 'flex',
+    altText: '👥 ตรวจสอบบทบาทผู้ใช้งาน',
+    contents: {
+      type: 'bubble', size: 'mega',
+      header: {
+        type: 'box', layout: 'vertical', backgroundColor: '#1a3a6e', paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '👥 ตรวจสอบบทบาทผู้ใช้งาน', color: '#ffffff', weight: 'bold', size: 'md' },
+          { type: 'text', text: `ทั้งหมด ${users.length} รายการ (แสดง 25 ล่าสุด)`, color: '#a8c4e8', size: 'xs' },
+        ],
+      },
+      body: {
+        type: 'box', layout: 'vertical', paddingAll: '12px',
+        contents: items,
+      },
+      footer: {
+        type: 'box', layout: 'vertical', paddingAll: '8px',
+        contents: [
+          { type: 'text', text: 'แก้ไขบทบาทได้โดยตรงใน Google Sheets คอลัมน์ D', size: 'xxs', color: '#aaaaaa', align: 'center' }
+        ]
+      }
+    },
+  };
+}
+
 function buildHelpItem(title, cmd, bgColor, titleColor) {
   return {
     type: 'box', layout: 'vertical', backgroundColor: bgColor, cornerRadius: '8px', paddingAll: '10px', margin: 'sm',
@@ -568,6 +628,7 @@ module.exports = {
   buildAddAdminConfirmFlex,
   buildBlockConfirmFlex,
   buildUserListFlex,
+  buildUserRoleListFlex,
   buildAdminHelpFlex,
   buildSuspectListFlex,
   ADMIN_IDS: ENV_ADMIN_IDS,

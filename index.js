@@ -265,6 +265,14 @@ async function handleEvent(event) {
         return replyMessage(replyToken, buildUserListFlex(followers));
       }
 
+      if (userText === '/บทบาท') {
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถตรวจสอบบทบาทได้ครับ');
+        const { loadFollowersFromSheet: loadUsers } = require('./sheets-writer');
+        const users = await loadUsers();
+        const { buildUserRoleListFlex } = require('./admin');
+        return replyMessage(replyToken, buildUserRoleListFlex(users));
+      }
+
       if (userText.startsWith('/block ')) {
         if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์ปิดกั้นการใช้งานผู้ใช้');
         const targetId = parseBlockCommand(userText);
