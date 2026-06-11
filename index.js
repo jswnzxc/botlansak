@@ -35,7 +35,8 @@ const {
   appendWatchlistPerson, deletePerson, updatePersonField,
   trackUserInSheet, loadFollowersFromSheet,
   appendLocationRecord, blockUserInSheet, loadBlockedUsersFromSheet,
-  isConfigured: isSheetConfigured 
+  isConfigured: isSheetConfigured,
+  setUserReminderTime, getDueReminders
 } = require('./sheets-writer');
 const { trackUser, broadcastToAll, broadcastToTarget, getStats, buildBroadcastResultFlex } = require('./broadcast');
 const { askAI } = require('./ai');
@@ -49,8 +50,29 @@ const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_TOKEN,
 });
 
-// เก็บ Timer สำหรับแจ้งเตือนจุดเสี่ยง (1.5 ชม.)
-const riskReminderTimers = new Map();
+// ระบบตรวจสอบการแจ้งเตือนจุดเสี่ยง (ตรวจสอบทุก 1 นาที)
+setInterval(async () => {
+  try {
+    const dueReminders = await getDueReminders();
+    for (const item of dueReminders) {
+      try {
+        await client.pushMessage({
+          to: item.userId,
+          messages: [{ type: 'text', text: '!!!!!อย่าลืมส่งรายงานจุดเสี่ยงนะครับ' }]
+        });
+        console.log(`🔔 Persistent Reminder sent to ${item.userId}`);
+        // ส่งเสร็จแล้ว ลบเวลาแจ้งเตือนออก
+        await setUserReminderTime(item.userId, '');
+      } catch (err) {
+        console.error(`❌ Failed to send persistent reminder to ${item.userId}:`, err.message);
+        // ถ้าส่งไม่สำเร็จ (เช่น โดนบล็อก) ให้ลบเวลาออกเลยเพื่อไม่ให้ค้าง
+        await setUserReminderTime(item.userId, '');
+      }
+    }
+  } catch (err) {
+    console.error('Error in reminder interval:', err.message);
+  }
+}, 60 * 1000);
 
 const app = express();
 app.use(express.static('public'));
@@ -383,25 +405,17 @@ async function handleEvent(event) {
         }
       ];
 
-      // ── แจ้งเตือนส่งรายงานจุดเสี่ยง (1 ชม. หลังจากขอดู QR) ──
+      // ── แจ้งเตือนส่งรายงานจุดเสี่ยง (แบบ Persistent ผ่าน Google Sheets) ──
       if (userId) {
-        // หากไม่มี Timer อยู่ ให้สร้างใหม่ (นับจากจุดแรกที่กด)
-        if (!riskReminderTimers.has(userId)) {
-          const timer = setTimeout(async () => {
-            try {
-              await client.pushMessage({
-                to: userId,
-                messages: [{ type: 'text', text: '!!!!!อย่าลืมส่งรายงานจุดเสี่ยงนะครับ' }]
-              });
-              console.log(`🔔 Reminder sent to ${userId} for location: ${locationName}`);
-            } catch (err) {
-              console.error(`❌ Failed to send reminder to ${userId}:`, err.message);
-            } finally {
-              riskReminderTimers.delete(userId);
-            }
-          }, 60 * 60 * 1000); // 60 mins
-          riskReminderTimers.set(userId, timer);
-
+        // ตรวจสอบจากรายชื่อผู้ใช้ว่ามีเวลาแจ้งเตือนค้างอยู่หรือไม่
+        const followers = await loadFollowersFromSheet();
+        const currentUser = followers.find(f => f.userId === userId);
+        
+        // ถ้ายังไม่มีการตั้งเวลา (ค่าในคอลัมน์ E ว่าง) หรือเวลาผ่านไปแล้ว
+        if (currentUser && !currentUser.reminderTime) { 
+          const reminderTime = Date.now() + (60 * 60 * 1000); // อีก 1 ชม.
+          await setUserReminderTime(userId, reminderTime.toString());
+          
           // เพิ่มข้อความแจ้งผู้ใช้ว่าเริ่มนับเวลาแล้ว (เฉพาะจุดแรก)
           messages.unshift({ type: 'text', text: '⏳ เริ่มนับเวลา 1 ชั่วโมงในการปฏิบัติหน้าที่จุดเสี่ยงครับ อย่าลืมส่งรายงานเมื่อเสร็จสิ้นภารกิจนะครับ' });
         }

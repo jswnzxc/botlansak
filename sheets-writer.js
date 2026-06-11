@@ -228,21 +228,22 @@ async function trackUserInSheet(userId, displayName) {
 }
 
 /**
- * โหลดรายชื่อผู้ใช้ทั้งหมดจาก Google Sheets พร้อมบทบาท
+ * โหลดรายชื่อผู้ใช้ทั้งหมดจาก Google Sheets พร้อมบทบาทและเวลาแจ้งเตือน
  */
 async function loadFollowersFromSheet() {
   const sheets = getSheetsClient();
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_USERS}!A:D`,
+      range: `${SHEET_USERS}!A:E`,
     });
     const rows = response.data.values || [];
-    // A: userId, B: displayName, C: timestamp, D: role
+    // A: userId, B: displayName, C: timestamp, D: role, E: reminderTime
     return rows.slice(1).map(row => ({ 
       userId: row[0], 
       displayName: row[1] || '',
-      role: (row[3] || 'people').toLowerCase().trim()
+      role: (row[3] || 'people').toLowerCase().trim(),
+      reminderTime: row[4] || ''
     }));
   } catch (err) {
     console.error('Error loading followers:', err.message);
@@ -349,10 +350,69 @@ function isConfigured() {
   return config.GOOGLE_CLIENT_EMAIL && config.GOOGLE_PRIVATE_KEY && config.SPREADSHEET_ID;
 }
 
-module.exports = { 
+/**
+ * อัปเดตเวลาแจ้งเตือนของ User (คอลัมน์ E)
+ */
+async function setUserReminderTime(userId, timestamp) {
+  const sheets = getSheetsClient();
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!A:A`,
+    });
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex(row => row[0] === userId);
+    if (rowIndex === -1) return false;
+
+    // คอลัมน์ E คือ index 4
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!E${rowIndex + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[timestamp || '']] },
+    });
+    return true;
+  } catch (e) {
+    console.error('Error setting reminder time:', e.message);
+    return false;
+  }
+}
+
+/**
+ * ดึงรายการ User ที่ถึงเวลาแจ้งเตือนแล้ว
+ */
+async function getDueReminders() {
+  const sheets = getSheetsClient();
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_USERS}!A:E`,
+    });
+    const rows = response.data.values || [];
+    const now = Date.now();
+    const dueUsers = [];
+
+    // เริ่มวนลูปจากแถวที่ 2 (slice(1))
+    for (let i = 1; i < rows.length; i++) {
+      const userId = rows[i][0];
+      const reminderTime = parseInt(rows[i][4]); // คอลัมน์ E (index 4)
+
+      if (reminderTime && reminderTime <= now) {
+        dueUsers.push({ userId, rowIndex: i + 1 });
+      }
+    }
+    return dueUsers;
+  } catch (err) {
+    console.error('Error getting due reminders:', err.message);
+    return [];
+  }
+}
+
+module.exports = {
   appendWatchlistPerson, deletePerson, updatePersonField, 
   trackUserInSheet, loadFollowersFromSheet, isConfigured, SHEET_WATCHLIST,
   appendLocationRecord,
   loadAdminsFromSheet, addAdminInSheet,
-  blockUserInSheet, loadBlockedUsersFromSheet
+  blockUserInSheet, loadBlockedUsersFromSheet,
+  setUserReminderTime, getDueReminders
 };
