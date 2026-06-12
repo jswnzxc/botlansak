@@ -461,6 +461,10 @@ async function handleEvent(event) {
       return replyMessage(replyToken, buildFuelStationFlex());
     }
 
+    if (userText === '/รายงานน้ำมัน' || userText === '/น้ำมัน') {
+      return replyText(replyToken, '🛢️ ท่านสามารถส่งรายงานน้ำมันได้ที่เว็บไซต์นี้ครับ:\nhttps://inquisitive-bonbon-e2996a.netlify.app/');
+    }
+
     if (userText.startsWith('ค้นหาเบอร์เชิงลึก')) {
       const phone = userText.replace('ค้นหาเบอร์เชิงลึก', '').trim();
       if (!phone) return replyText(replyToken, '🔍 รูปแบบ: ค้นหาเบอร์เชิงลึก 08XXXXXXXX');
