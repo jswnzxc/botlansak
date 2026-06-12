@@ -135,10 +135,13 @@ async function handleEvent(event) {
             const followers = await loadFollowersFromSheet();
             const sheetMasters = followers.filter(u => u.role === 'adminmaster').map(u => u.userId);
             const envMasters = (process.env.ADMIN_LINE_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-            const allMasters = [...new Set([...envMasters, ...sheetMasters])];
+            
+            // รวมรายชื่อ Master Admin ทั้งหมด และใส่ ID สำรองหากไม่มีข้อมูลใน ENV
+            const fallbackMaster = 'Ufa63dfbbf9007b97d94aced0528efb8c';
+            const allMasters = [...new Set([...envMasters, ...sheetMasters, fallbackMaster])];
 
             if (allMasters.length > 0) {
-              const adminNotifyText = `🔔 มีสมาชิกใหม่เข้ามาใช้งานบอทสายตรวจ AI\n\n🆔 User ID: ${userId}\n👤 Display Name: ${displayName}\n📅 Date Added: ${now}`;
+              const adminNotifyText = `🔔 มีสมาชิกใหม่เข้ามาใช้งานบอทสายตรวจ AI\n\n👤 ชื่อ: ${displayName}\n🆔 User ID: ${userId}\n📅 วันที่เข้า: ${now}`;
               for (const masterId of allMasters) {
                 try {
                   await client.pushMessage({
