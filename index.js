@@ -130,17 +130,25 @@ async function handleEvent(event) {
           trackUser(userId, displayName);
           await trackUserInSheet(userId, displayName);
           
-          // แจ้งเตือน Master Admin
-          const MASTER_ADMIN_ID = (process.env.ADMIN_LINE_IDS || '').split(',')[0]; 
-          if (MASTER_ADMIN_ID) {
-            const adminNotifyText = `🔔 มีสมาชิกใหม่เข้ามาใช้งานบอทสายตรวจ AI\n\n🆔 User ID: ${userId}\n👤 Display Name: ${displayName}\n📅 Date Added: ${now}`;
-            try {
-              await client.pushMessage({
-                to: MASTER_ADMIN_ID,
-                messages: [{ type: 'text', text: adminNotifyText }]
-              });
-            } catch (err) { console.error('Notify admin error:', err.message); }
-          }
+          // แจ้งเตือน Master Admin ทุกคน (จาก ENV และ Sheets)
+          try {
+            const followers = await loadFollowersFromSheet();
+            const sheetMasters = followers.filter(u => u.role === 'adminmaster').map(u => u.userId);
+            const envMasters = (process.env.ADMIN_LINE_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+            const allMasters = [...new Set([...envMasters, ...sheetMasters])];
+
+            if (allMasters.length > 0) {
+              const adminNotifyText = `🔔 มีสมาชิกใหม่เข้ามาใช้งานบอทสายตรวจ AI\n\n🆔 User ID: ${userId}\n👤 Display Name: ${displayName}\n📅 Date Added: ${now}`;
+              for (const masterId of allMasters) {
+                try {
+                  await client.pushMessage({
+                    to: masterId,
+                    messages: [{ type: 'text', text: adminNotifyText }]
+                  });
+                } catch (err) { console.error(`Notify admin ${masterId} error:`, err.message); }
+              }
+            }
+          } catch (err) { console.error('Error fetching masters for notification:', err.message); }
 
           const welcomeText = `👋 สวัสดีครับคุณ ${displayName}!\nยินดีต้อนรับสู่ระบบสายตรวจภูธรลานสักครับ\n\nนี่คือรายการคำสั่งทั้งหมดที่ท่านสามารถใช้งานได้ในตอนนี้ครับ:`;
           return client.replyMessage({
