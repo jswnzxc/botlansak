@@ -1352,7 +1352,7 @@ function buildLocationListFlex(locations) {
       },
       {
         type: 'text',
-        text: `⚖️ สถานะ: ${loc.status}`,
+        text: `⚖️ รายงานเหตุ: ${loc.report || 'รอดำเนินการ'}`,
         size: 'xxs',
         color: '#c62828',
         margin: 'xs'
@@ -1363,18 +1363,20 @@ function buildLocationListFlex(locations) {
   if (contents.length === 0) {
     contents.push({
       type: 'text',
-      text: 'ไม่พบข้อมูลสถานที่ในระบบ',
+      text: 'ยังไม่มีข้อมูลการบันทึกสถานที่',
       align: 'center',
       color: '#aaaaaa',
+      size: 'sm',
       margin: 'lg'
     });
   }
 
   return {
     type: 'flex',
-    altText: 'รายการสถานที่ล่าสุด',
+    altText: '📋 รายการบันทึกสถานที่ (10 รายการล่าสุด)',
     contents: {
       type: 'bubble',
+      size: 'mega',
       header: {
         type: 'box',
         layout: 'vertical',
@@ -1382,10 +1384,16 @@ function buildLocationListFlex(locations) {
         contents: [
           {
             type: 'text',
-            text: '📍 รายการสถานที่ที่บันทึก',
+            text: '📋 รายการบันทึกสถานที่',
             color: '#ffffff',
             weight: 'bold',
             size: 'md'
+          },
+          {
+            type: 'text',
+            text: '10 รายการล่าสุดจาก Google Sheets',
+            color: '#a5d6a7',
+            size: 'xxs'
           }
         ]
       },
