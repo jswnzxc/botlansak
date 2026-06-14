@@ -194,21 +194,93 @@ function parseDeleteCommand(text) {
 
 /**
  * Parse คำสั่ง /แก้ไข
- * รูปแบบ: /แก้ไข [ยศ] ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่
+ * รูปแบบ 1: /แก้ไข [ยศ] ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่ (Legacy)
+ * รูปแบบ 2: /แก้ไข [ยศ] ชื่อ นามสกุล (เพื่อเลือกฟิลด์ที่จะแก้ไข)
  */
 function parseEditCommand(text) {
   const content = text.replace(/^\/แก้ไข\s+/, '').trim();
-  const mainParts = content.split('|').map(s => s.trim());
-  if (mainParts.length < 3) return null;
+  
+  // ตรวจสอบว่ามี | หรือไม่
+  if (content.includes('|')) {
+    const mainParts = content.split('|').map(s => s.trim());
+    if (mainParts.length < 3) return null;
 
-  const { firstName, lastName } = extractName(mainParts[0]);
-  if (!firstName || !lastName || lastName === '-') return null;
+    const { rank, firstName, lastName } = extractName(mainParts[0]);
+    if (!firstName || !lastName || lastName === '-') return null;
+
+    return {
+      type: 'full',
+      rank,
+      firstName,
+      lastName,
+      field: mainParts[1],
+      newValue: mainParts[2]
+    };
+  } else {
+    // กรณีพิมพ์แค่ชื่อ
+    const { rank, firstName, lastName } = extractName(content);
+    if (!firstName || !lastName || lastName === '-') return null;
+    return {
+      type: 'init',
+      rank,
+      firstName,
+      lastName
+    };
+  }
+}
+
+/**
+ * สร้าง Flex Message แสดงปุ่มเลือกฟิลด์ที่จะแก้ไข
+ */
+function buildEditOptionsFlex(person) {
+  const name = `${person.rank} ${person.firstName} ${person.lastName}`.trim();
+  const fields = [
+    { label: 'ยศ/คำนำหน้า', field: 'ยศ', icon: '🎖️' },
+    { label: 'ข้อมูลคดี', field: 'คดี', icon: '📋' },
+    { label: 'สถานะ', field: 'สถานะ', icon: '🔴' },
+    { label: 'พื้นที่', field: 'พื้นที่', icon: '📍' },
+    { label: 'หมายเลขคดี', field: 'หมายเลขคดี', icon: '🔢' }
+  ];
 
   return {
-    firstName,
-    lastName,
-    field: mainParts[1],
-    newValue: mainParts[2]
+    type: 'flex',
+    altText: `✏️ แก้ไขข้อมูล: ${name}`,
+    contents: {
+      type: 'bubble', size: 'mega',
+      header: {
+        type: 'box', layout: 'vertical', backgroundColor: '#b45309', paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '✏️ เลือกข้อมูลที่ต้องการแก้ไข', color: '#ffffff', weight: 'bold', size: 'md' },
+          { type: 'text', text: name, color: '#fef3c7', size: 'sm', margin: 'xs' },
+        ],
+      },
+      body: {
+        type: 'box', layout: 'vertical', paddingAll: '16px', spacing: 'md',
+        contents: [
+          {
+            type: 'box', layout: 'vertical', spacing: 'sm',
+            contents: fields.map(f => ({
+              type: 'button',
+              height: 'sm',
+              style: 'secondary',
+              color: '#fff7ed',
+              action: {
+                type: 'message',
+                label: `${f.icon} แก้ไข${f.label}`,
+                text: `/แก้ไข ${name} | ${f.field} | [ใส่ค่าใหม่ที่นี่]`
+              },
+              margin: 'sm'
+            }))
+          },
+          { type: 'separator', margin: 'lg' },
+          {
+            type: 'text',
+            text: '💡 กดปุ่มด้านบน แล้วแก้ไขข้อความในช่องแชทตรง "[ใส่ค่าใหม่ที่นี่]" ให้เป็นข้อมูลจริงแล้วกดส่ง',
+            size: 'xs', color: '#92400e', wrap: true, margin: 'md'
+          }
+        ]
+      }
+    }
   };
 }
 
@@ -385,7 +457,7 @@ function buildAdminHelpFlex() {
           buildHelpItem('➕ เพิ่มบุคคล', '/เพิ่ม ยศ ชื่อ นามสกุล | คดี | สถานะ | พื้นที่ | หมายเลขคดี', '#f0f4ff', '#1a3a6e'),
           buildHelpItem('📋 รายชื่อผู้ต้องหา', '/รายชื่อ', '#f0fff4', '#27ae60'),
           buildHelpItem('🗑️ ลบบุคคล', '/ลบ ชื่อ นามสกุล', '#fff5f5', '#c53030'),
-          buildHelpItem('✏️ แก้ไขข้อมูล', '/แก้ไข ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่', '#fffaf0', '#b45309'),
+          buildHelpItem('✏️ แก้ไขข้อมูล', '/แก้ไข ชื่อ นามสกุล', '#fffaf0', '#b45309'),
           buildHelpItem('📢 ส่งข้อความ', '/broadcast [ข้อความ] หรือ /broadcast @ชื่อ [ข้อความ]', '#fdf2f2', '#991b1b'),
           buildHelpItem('📋 ส่งแจ้งเตือน+เมนู', '/broadcast-menu [ข้อความ]', '#fdf2f2', '#991b1b'),
           buildHelpItem('📊 ดูระบบ', '/สถิติ, /สถานะ, /ล้างcache', '#f7fafc', '#4a5568'),
@@ -625,6 +697,7 @@ module.exports = {
   buildAddConfirmFlex,
   buildDeleteConfirmFlex,
   buildEditConfirmFlex,
+  buildEditOptionsFlex,
   buildAddAdminConfirmFlex,
   buildBlockConfirmFlex,
   buildUserListFlex,

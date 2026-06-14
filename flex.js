@@ -54,7 +54,7 @@ function buildResultFlex(suspect, isAdminUser = false) {
           action: {
             type: 'message',
             label: 'แก้ไข',
-            text: `/แก้ไข ${suspect.firstName} ${suspect.lastName} | [ฟิลด์] | [ค่าใหม่]`,
+            text: `/แก้ไข ${suspect.firstName} ${suspect.lastName}`,
           },
           flex: 2,
         },

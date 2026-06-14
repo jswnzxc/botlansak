@@ -28,6 +28,7 @@ const {
   parseAddCommand, parseDeleteCommand, parseEditCommand,
   parseAddAdminCommand, parseBlockCommand,
   buildAddConfirmFlex, buildDeleteConfirmFlex, buildEditConfirmFlex, 
+  buildEditOptionsFlex,
   buildAddAdminConfirmFlex, buildBlockConfirmFlex,
   buildAdminHelpFlex, buildSuspectListFlex, buildUserListFlex, ADMIN_IDS
 } = require('./admin');
@@ -306,9 +307,20 @@ async function handleEvent(event) {
         if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถแก้ไขข้อมูลได้ครับ');
         const editData = parseEditCommand(userText);
         if (!editData) return replyText(replyToken, '❌ รูปแบบ: /แก้ไข ชื่อ นามสกุล | ฟิลด์ | ค่าใหม่');
-        const result = await updatePersonField(editData.firstName, editData.lastName, editData.field, editData.newValue);
-        if (result.success) clearCache();
-        return replyMessage(replyToken, buildEditConfirmFlex(editData, result.success, result.message));
+
+        if (editData.type === 'init') {
+          // ค้นหาข้อมูลเดิมก่อนเพื่อให้แน่ใจว่ามีตัวตนจริง
+          const results = await searchByName(`${editData.firstName} ${editData.lastName}`);
+          const person = results.find(p => p.firstName === editData.firstName && p.lastName === editData.lastName);
+          if (!person) return replyText(replyToken, `❌ ไม่พบรายชื่อ "${editData.firstName} ${editData.lastName}" ในระบบครับ`);
+          
+          return replyMessage(replyToken, buildEditOptionsFlex(person));
+        } else {
+          // แบบระบุฟิลด์และค่าใหม่ (Legacy หรือมาจากปุ่ม)
+          const result = await updatePersonField(editData.firstName, editData.lastName, editData.field, editData.newValue);
+          if (result.success) clearCache();
+          return replyMessage(replyToken, buildEditConfirmFlex(editData, result.success, result.message));
+        }
       }
 
       if (userText.startsWith('/เพิ่มแอดมิน ')) {
