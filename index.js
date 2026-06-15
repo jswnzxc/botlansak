@@ -347,7 +347,7 @@ async function handleEvent(event) {
     if (userText === '/sync_users') {
       if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถซิงค์ข้อมูลผู้ใช้ได้ครับ');
       
-      await replyText(replyToken, '⏳ กำลังเริ่มซิงค์รายชื่อผู้ใช้จาก LINE... (อาจใช้เวลาสักครู่)');
+      await replyText(replyToken, '⏳ ระบบกำลังเริ่มกู้คืนรายชื่อผู้ใช้จาก LINE... (โปรดรอสักครู่)');
       
       // รันในพื้นหลังเพื่อไม่ให้ webhook timeout
       (async () => {
@@ -381,7 +381,8 @@ async function handleEvent(event) {
               if (synced % 10 === 0) await new Promise(r => setTimeout(r, 500));
             } catch (err) {}
           }
-          await client.pushMessage({ to: userId, messages: [{ type: 'text', text: `✅ ซิงค์รายชื่อตกหล่นสำเร็จ ${synced} รายการครับ` }] });
+          await refreshUserCache(); // อัปเดต Cache สิทธิ์การใช้งานทันที
+          await client.pushMessage({ to: userId, messages: [{ type: 'text', text: `✅ กู้คืนรายชื่อตกหล่นสำเร็จ ${synced} รายการเรียบร้อยครับ` }] });
         } catch (err) {
           console.error('Background Sync error:', err);
           await client.pushMessage({ to: userId, messages: [{ type: 'text', text: `❌ เกิดข้อผิดพลาดในการซิงค์: ${err.message}` }] });
