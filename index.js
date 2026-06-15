@@ -347,7 +347,7 @@ async function handleEvent(event) {
     if (userText === '/sync_users') {
       if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถซิงค์ข้อมูลผู้ใช้ได้ครับ');
       
-      await replyText(replyToken, '⏳ ระบบกำลังเริ่มกู้คืนรายชื่อผู้ใช้จาก LINE... (โปรดรอสักครู่)');
+      await replyText(replyToken, '⏳ [Sync v1.1] ระบบกำลังเริ่มกู้คืนรายชื่อจาก LINE... (โปรดรอสักครู่)');
       
       // รันในพื้นหลังเพื่อไม่ให้ webhook timeout
       (async () => {
