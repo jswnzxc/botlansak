@@ -439,6 +439,55 @@ async function handleEvent(event) {
         return replyMessage(replyToken, buildUserListFlex(followers));
       }
 
+      if (userText === '/sync_users') {
+        if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่สามารถซิงค์ข้อมูลผู้ใช้ได้ครับ');
+        
+        await replyText(replyToken, '⏳ กำลังเริ่มซิงค์รายชื่อผู้ใช้จาก LINE... (อาจใช้เวลาสักครู่)');
+        
+        try {
+          let allIds = [];
+          let nextToken;
+          
+          // ดึง ID ทั้งหมดจาก LINE (ทีละ 1,000)
+          do {
+            const res = await client.getFollowerIds({ continuationToken: nextToken });
+            allIds = allIds.concat(res.userIds);
+            nextToken = res.next;
+          } while (nextToken);
+
+          const existingFollowers = await loadFollowersFromSheet();
+          const existingIds = existingFollowers.map(f => f.userId);
+          const newIds = allIds.filter(id => !existingIds.includes(id));
+
+          if (newIds.length === 0) {
+            return client.pushMessage({ to: userId, messages: [{ type: 'text', text: '✅ ข้อมูลผู้ใช้เป็นปัจจุบันอยู่แล้ว ไม่พบรายชื่อตกหล่นครับ' }] });
+          }
+
+          let synced = 0;
+          for (const targetId of newIds) {
+            try {
+              let name = 'ผู้ใช้เก่า (Legacy)';
+              try {
+                const profile = await client.getProfile(targetId);
+                name = profile.displayName;
+              } catch (err) { /* คนที่บล็อกบอทไปแล้วจะดึงชื่อไม่ได้ */ }
+              
+              await trackUserInSheet(targetId, name);
+              synced++;
+              // หน่วงเวลาเล็กน้อยกัน rate limit
+              if (synced % 10 === 0) await new Promise(r => setTimeout(r, 500));
+            } catch (err) {
+              console.error(`Sync error for ${targetId}:`, err.message);
+            }
+          }
+
+          return client.pushMessage({ to: userId, messages: [{ type: 'text', text: `✅ ซิงค์รายชื่อตกหล่นสำเร็จ ${synced} รายการครับ` }] });
+        } catch (err) {
+          console.error('Full Sync error:', err);
+          return client.pushMessage({ to: userId, messages: [{ type: 'text', text: `❌ เกิดข้อผิดพลาดในการซิงค์: ${err.message}` }] });
+        }
+      }
+
       if (userText.startsWith('/block ')) {
         if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 เฉพาะ Master Admin เท่านั้นที่มีสิทธิ์ปิดกั้นการใช้งานผู้ใช้');
         const targetId = parseBlockCommand(userText);
