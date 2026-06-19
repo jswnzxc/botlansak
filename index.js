@@ -455,7 +455,7 @@ async function handleEvent(event) {
 
         if (!args) {
           setAddSession(userId, { step: 1 });
-          return replyText(replyToken, '➕ เริ่มระบบเพิ่มข้อมูลใหม่แบบทีละขั้นตอน\n\n(1/5) กรุณาพิมพ์ "ยศ ชื่อ นามสกุล"\n(เช่น ร.ต.อ. สมชาย ใจดี หรือ นายสมบูรณ์ ดีใจ)\n\nหรือพิมพ์ "ยกเลิก" เพื่อออกจากการเพิ่มข้อมูล');
+          return replyText(replyToken, '➕ เริ่มระบบเพิ่มข้อมูลแบบทีละขั้นตอน\n\n(1/5) กรุณาพิมพ์ "คำนำหน้า ชื่อ นามสกุล"\n(เช่น  นายสมบูรณ์ ดีใจ)\n\nหรือพิมพ์ "ยกเลิก" เพื่อออกจากการเพิ่มข้อมูล');
         }
 
         const person = parseAddCommand(userText, userId);
