@@ -20,8 +20,6 @@ const {
   buildRiskCategoryMenuFlex,
   buildRiskLocationMenuFlex,
   buildAllRiskLocationsMenuFlex,
-  buildNameSearchResultFlex,
-  buildNameSearchNotFoundFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -573,86 +571,48 @@ async function handleEvent(event) {
     if (userText.startsWith('/ค้นชื่อนามสกุล')) {
       const query = userText.replace('/ค้นชื่อนามสกุล', '').trim();
       if (!query) {
-        return replyText(replyToken, '🔍 รูปแบบ: /ค้นชื่อนามสกุล ชื่อ นามสกุล\nตัวอย่าง: /ค้นชื่อนามสกุล สมชาย ใจดี');
+        return replyText(replyToken, '🔍 รูปแบบ: /ค้นชื่อนามสกุล ชื่อ นามสกุล\nตัวอย่าง: /ค้นชื่อนามสกุล นภัส จันทร์สุวรรณ์');
       }
       try {
         const XAPI_TOKEN = process.env.XAPI_TOKEN || '9kzaswq.xyz';
-        const encodedName = encodeURIComponent(query);
-        const apiUrl = `http://85.203.4.220:8787/xapi/query/true?token=${XAPI_TOKEN}&type=name&value=${encodedName}`;
+        const apiUrl = `http://85.203.4.220:8787/xapi/query/true?token=${XAPI_TOKEN}&type=name&value=${encodeURIComponent(query)}`;
         const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
-        if (!resp.ok) throw new Error(`API ตอบกลับ: ${resp.status}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();
-        console.log('📦 XAPI RAW:', JSON.stringify(json).slice(0, 500));
 
-        // รองรับทั้ง array, { data: [...] }, และ object เดี่ยว
-        const records = Array.isArray(json) ? json : (json.data ? (Array.isArray(json.data) ? json.data : [json.data]) : [json]);
-        const validRecords = records.filter(r => r && typeof r === 'object' && !r.error && !r.message && !r.status?.includes('error'));
-
-        if (validRecords.length === 0) {
+        // API structure: { ok, status, message, data: { name, pid, phone, address }, image: { url, expires_at } }
+        if (!json.ok || json.status !== 'success' || !json.data) {
           return replyText(replyToken, `🔍 ไม่พบข้อมูลสำหรับ "${query}" ครับ\nกรุณาตรวจสอบการสะกดชื่อ-นามสกุล`);
         }
 
-        // ส่งทีละคน (สูงสุด 5 คน ป้องกัน rate limit LINE)
-        const toSend = validRecords.slice(0, 5);
-        const messages = [];
+        const d = json.data;
+        const imageUrl = json.image?.url || null;
 
-        for (const rec of toSend) {
-          // ── map field — รองรับหลาย naming convention ──
-          const fname   = rec.fname   || rec.first_name || rec.firstname || rec.name  || '';
-          const lname   = rec.lname   || rec.last_name  || rec.lastname  || rec.surname || '';
-          const fullName = rec.fullname || rec.full_name || rec.FULL_NAME || `${fname} ${lname}`.trim() || '—';
-          const idCard  = rec.idcard  || rec.id_card    || rec.national_id || rec.cid   || rec.pid   || '—';
-          const phone   = rec.tel     || rec.phone      || rec.mobile     || rec.telephone || '—';
-          const address = rec.address || rec.addr       || rec.ที่อยู่     || '—';
-          const licType = rec.lic_type || rec.license_type || rec.type_name || rec.category || '';
-          const licNo   = rec.lic_no  || rec.license_no  || rec.permit_no  || '';
-          const expire  = rec.expire  || rec.expiry_date || rec.exp_date   || '';
-          const imageUrl = rec.image  || rec.image_url  || rec.photo      || rec.img || rec.picture || null;
-
-          // ── สร้างข้อความจัดเรียง ──
-          let text = '';
-          if (toSend.length > 1) text += `━━━━━━ รายการที่ ${toSend.indexOf(rec) + 1}/${toSend.length} ━━━━━━\n`;
-          if (licType || licNo) {
-            text += `📋 ข้อมูลใบอนุญาต\n`;
-            if (licType) text += `   ประเภท: ${licType}\n`;
-            if (licNo)   text += `   เลขที่: ${licNo}\n`;
-            if (expire)  text += `   หมดอายุ: ${expire}\n`;
-            text += `\n`;
-          }
-          text += `👤 ชื่อ-นามสกุล\n   ${fullName}\n`;
-          text += `\n🪪 เลขบัตรประจำตัว\n   ${idCard}\n`;
-          if (phone !== '—') text += `\n📞 เบอร์โทรศัพท์\n   ${phone}\n`;
-          if (address !== '—') text += `\n📍 ที่อยู่\n   ${address}\n`;
-
-          // เพิ่ม field อื่นๆ ที่ API ส่งมาและยังไม่ได้แสดง
-          const shownKeys = new Set(['fname','lname','first_name','last_name','firstname','lastname','name','surname',
-            'fullname','full_name','FULL_NAME','idcard','id_card','national_id','cid','pid',
-            'tel','phone','mobile','telephone','address','addr',
-            'lic_type','license_type','type_name','category',
-            'lic_no','license_no','permit_no','expire','expiry_date','exp_date',
-            'image','image_url','photo','img','picture']);
-          const extraLines = Object.entries(rec)
-            .filter(([k, v]) => !shownKeys.has(k) && v && String(v).trim() !== '')
-            .map(([k, v]) => `   ${k}: ${v}`)
-            .join('\n');
-          if (extraLines) text += `\nℹ️ ข้อมูลเพิ่มเติม\n${extraLines}\n`;
-
-          text += `\n⚠️ ข้อมูลนี้เป็นความลับ ห้ามเผยแพร่`;
-
-          messages.push({ type: 'text', text });
-
-          // แนบรูปภาพต่อจากข้อความ
-          if (imageUrl && imageUrl.startsWith('http')) {
-            messages.push({
-              type: 'image',
-              originalContentUrl: imageUrl,
-              previewImageUrl: imageUrl,
-            });
-          }
+        // ── สร้างข้อความจัดเรียง ──
+        let text = '';
+        text += `👤 ชื่อ-นามสกุล\n`;
+        text += `${d.name || '—'}\n`;
+        text += `\n🪪 เลขบัตรประจำตัว\n`;
+        text += `${d.pid || '—'}\n`;
+        if (d.phone) {
+          text += `\n📞 เบอร์โทรศัพท์\n`;
+          text += `${d.phone}\n`;
         }
+        if (d.address) {
+          text += `\n📍 ที่อยู่\n`;
+          text += `${d.address}\n`;
+        }
+        text += `\n⚠️ ข้อมูลนี้เป็นความลับ ห้ามเผยแพร่`;
 
-        if (validRecords.length > 5) {
-          messages.push({ type: 'text', text: `📌 พบทั้งหมด ${validRecords.length} รายการ แสดงเพียง 5 รายการแรกครับ` });
+        const messages = [{ type: 'text', text }];
+
+        // แนบรูปภาพต่อจากข้อความ (URL หมดอายุใน 5 นาที)
+        if (imageUrl) {
+          messages.push({
+            type: 'image',
+            originalContentUrl: imageUrl,
+            previewImageUrl: imageUrl,
+          });
         }
 
         return client.replyMessage({ replyToken, messages });
