@@ -1709,14 +1709,16 @@ function buildPersonInfoFlex(d, imageUrl = null) {
     },
   ];
 
-  // รูปภาพ (ถ้ามีและเป็น https)
-  if (imageUrl && imageUrl.startsWith('https://')) {
+  // รูปภาพ (ถ้ามี — LINE Flex ต้องการ https เท่านั้น ให้แปลง http → https)
+  if (imageUrl) {
+    const safeUrl = imageUrl.startsWith('http://') ? imageUrl.replace('http://', 'https://') : imageUrl;
     bodyContents.push({ type: 'separator', margin: 'md', color: '#334455' });
     bodyContents.push({
       type: 'image',
-      url: imageUrl,
-      size: 'lg',
-      aspectMode: 'fit',
+      url: safeUrl,
+      size: 'full',
+      aspectRatio: '3:4',
+      aspectMode: 'cover',
       margin: 'md',
       align: 'center',
     });
