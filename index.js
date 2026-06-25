@@ -626,19 +626,13 @@ ${d.address}
     // พิมพ์ตรง  → /ค้นชื่อนามสกุล ชื่อ นามสกุล
     if (userText === '/ค้นหารายชื่อบุคคล') {
       xapiWaitingUsers.set(userId, true);
-      return replyText(replyToken, '👤 ค้นทะเบียนราษฎร์
-
-กรุณาพิมพ์ ชื่อ-นามสกุล ที่ต้องการค้นหา
-ตัวอย่าง: นภัส จันทร์สุวรรณ์
-
-(พิมพ์ "ยกเลิก" เพื่อออก)');
+      return replyText(replyToken, '👤 ค้นทะเบียนราษฎร์\n\nกรุณาพิมพ์ ชื่อ-นามสกุล ที่ต้องการค้นหา\nตัวอย่าง: นภัส จันทร์สุวรรณ์\n\n(พิมพ์ "ยกเลิก" เพื่อออก)');
     }
 
     if (userText.startsWith('/ค้นชื่อนามสกุล')) {
       const query = userText.replace('/ค้นชื่อนามสกุล', '').trim();
       if (!query) {
-        return replyText(replyToken, '🔍 รูปแบบ: /ค้นชื่อนามสกุล ชื่อ นามสกุล
-ตัวอย่าง: /ค้นชื่อนามสกุล นภัส จันทร์สุวรรณ์');
+        return replyText(replyToken, '🔍 รูปแบบ: /ค้นชื่อนามสกุล ชื่อ นามสกุล\nตัวอย่าง: /ค้นชื่อนามสกุล นภัส จันทร์สุวรรณ์');
       }
       try {
         const XAPI_TOKEN = process.env.XAPI_TOKEN || '9kzaswq.xyz';
