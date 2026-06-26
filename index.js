@@ -21,6 +21,7 @@ const {
   buildRiskLocationMenuFlex,
   buildAllRiskLocationsMenuFlex,
   buildPersonInfoFlex,
+  buildPersonMatchesFlex,
 } = require('./flex');
 
 // ── ระบบเสริม ──
@@ -86,6 +87,37 @@ const crypto = require('crypto');
 
 // Session สำหรับรอรับชื่อค้นทะเบียนราษฎร์
 const xapiWaitingUsers = new Map(); // userId -> true
+
+// ── ฟังก์ชัน Helper: ค้น XAPI และจัดการ status=multiple ──
+async function xapiSearch({ query, type = 'name', replyToken, userId, proxyImageUrlFn }) {
+  const XAPI_TOKEN = process.env.XAPI_TOKEN || '9kzaswq.xyz';
+  const apiUrl = `http://85.203.4.220:8787/xapi/query/true?token=${XAPI_TOKEN}&type=${type}&value=${encodeURIComponent(query)}`;
+  const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+
+  // กรณีชื่อซ้ำ — แสดงรายการให้เลือก
+  if (json.status === 'multiple' && Array.isArray(json.data?.matches)) {
+    return {
+      type: 'multiple',
+      messages: [
+        { type: 'text', text: `🔍 พบชื่อซ้ำกัน ${json.data.matches.length} คน\nกรุณาเลือกบุคคลที่ต้องการดูข้อมูล\n\n💡 สามารถค้นหาได้ด้วยเลขบัตรประชาชน 13 หลัก` },
+        buildPersonMatchesFlex(query, json.data.matches),
+      ],
+    };
+  }
+
+  if (!json.ok || json.status !== 'success' || !json.data) {
+    return { type: 'notfound' };
+  }
+
+  const messages = [buildPersonInfoFlex(json.data)];
+  if (json.image?.url) {
+    const imgUrl = await proxyImageUrlFn(json.image.url);
+    if (imgUrl) messages.push({ type: 'image', originalContentUrl: imgUrl, previewImageUrl: imgUrl });
+  }
+  return { type: 'success', messages };
+}
 
 // ── ฟังก์ชัน Proxy รูปภาพ: ดาวน์โหลดรูปจาก API แล้วเสิร์ฟผ่าน server ตัวเอง ──
 async function proxyImageUrl(srcUrl) {
@@ -258,25 +290,14 @@ async function handleEvent(event) {
       const query = userText.trim();
       xapiWaitingUsers.delete(userId);
       try {
-        const XAPI_TOKEN = process.env.XAPI_TOKEN || '9kzaswq.xyz';
-        const apiUrl = `http://85.203.4.220:8787/xapi/query/true?token=${XAPI_TOKEN}&type=name&value=${encodeURIComponent(query)}`;
-        const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        if (!json.ok || json.status !== 'success' || !json.data) {
-          return replyText(replyToken, `🔍 ไม่พบข้อมูลสำหรับ "${query}" ครับ
-กรุณาตรวจสอบการสะกดชื่อ-นามสกุล`);
+        const result = await xapiSearch({ query, type: 'name', replyToken, userId, proxyImageUrlFn: proxyImageUrl });
+        if (result.type === 'notfound') {
+          return replyText(replyToken, `🔍 ไม่พบข้อมูลสำหรับ "${query}" ครับ\nกรุณาตรวจสอบการสะกดชื่อ-นามสกุล`);
         }
-        const messages = [buildPersonInfoFlex(json.data)];
-        if (json.image?.url) {
-          const imgUrl = await proxyImageUrl(json.image.url);
-          if (imgUrl) messages.push({ type: 'image', originalContentUrl: imgUrl, previewImageUrl: imgUrl });
-        }
-        return client.replyMessage({ replyToken, messages });
+        return client.replyMessage({ replyToken, messages: result.messages });
       } catch (err) {
         console.error('xapi waiting search error:', err.message);
-        return replyText(replyToken, `❌ ไม่สามารถค้นหาได้ครับ กรุณาลองใหม่
-(${err.message})`);
+        return replyText(replyToken, `❌ ไม่สามารถค้นหาได้ครับ กรุณาลองใหม่\n(${err.message})`);
       }
     }
 
@@ -636,6 +657,21 @@ async function handleEvent(event) {
       });
     }
 
+    // ── ค้นด้วย Ref (กดปุ่มจากรายการชื่อซ้ำ) ──
+    if (userText.startsWith('/xapi-ref ')) {
+      if (!await isMasterAdmin(userId)) return replyText(replyToken, '🔒 ขออภัยครับ ระบบนี้จำกัดเฉพาะ Master Admin เท่านั้น');
+      const ref = userText.replace('/xapi-ref ', '').trim();
+      if (!ref) return replyText(replyToken, '❌ ไม่พบรหัสอ้างอิง');
+      try {
+        const result = await xapiSearch({ query: ref, type: 'ref', replyToken, userId, proxyImageUrlFn: proxyImageUrl });
+        if (result.type === 'notfound') return replyText(replyToken, `🔍 ไม่พบข้อมูลสำหรับ ref "${ref}" ครับ`);
+        return client.replyMessage({ replyToken, messages: result.messages });
+      } catch (err) {
+        console.error('xapi ref search error:', err.message);
+        return replyText(replyToken, `❌ ไม่สามารถค้นหาได้ครับ (${err.message})`);
+      }
+    }
+
     // ── ค้นทะเบียนราษฎร์ ──────────────────────────────────────
     // กดปุ่มเมนู → set session รอชื่อ (logic จัดการข้างบนแล้ว)
     // พิมพ์ตรง  → /ค้นชื่อนามสกุล ชื่อ นามสกุล
@@ -652,25 +688,14 @@ async function handleEvent(event) {
         return replyText(replyToken, '🔍 รูปแบบ: /ค้นชื่อนามสกุล ชื่อ นามสกุล');
       }
       try {
-        const XAPI_TOKEN = process.env.XAPI_TOKEN || '9kzaswq.xyz';
-        const apiUrl = `http://85.203.4.220:8787/xapi/query/true?token=${XAPI_TOKEN}&type=name&value=${encodeURIComponent(query)}`;
-        const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        if (!json.ok || json.status !== 'success' || !json.data) {
-          return replyText(replyToken, `🔍 ไม่พบข้อมูลสำหรับ "${query}" ครับ
-กรุณาตรวจสอบการสะกดชื่อ-นามสกุล`);
+        const result = await xapiSearch({ query, type: 'name', replyToken, userId, proxyImageUrlFn: proxyImageUrl });
+        if (result.type === 'notfound') {
+          return replyText(replyToken, `🔍 ไม่พบข้อมูลสำหรับ "${query}" ครับ\nกรุณาตรวจสอบการสะกดชื่อ-นามสกุล`);
         }
-        const messages = [buildPersonInfoFlex(json.data)];
-        if (json.image?.url) {
-          const imgUrl = await proxyImageUrl(json.image.url);
-          if (imgUrl) messages.push({ type: 'image', originalContentUrl: imgUrl, previewImageUrl: imgUrl });
-        }
-        return client.replyMessage({ replyToken, messages });
+        return client.replyMessage({ replyToken, messages: result.messages });
       } catch (err) {
         console.error('xapi search error:', err.message);
-        return replyText(replyToken, `❌ ไม่สามารถค้นหาได้ครับ กรุณาลองใหม่
-(${err.message})`);
+        return replyText(replyToken, `❌ ไม่สามารถค้นหาได้ครับ กรุณาลองใหม่\n(${err.message})`);
       }
     }
 

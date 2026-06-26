@@ -1720,6 +1720,17 @@ function buildPersonInfoFlex(d, imageUrl = null) {
     wrap: true,
   });
 
+  // แจ้งเตือนการค้นด้วยบัตรประชาชน
+  bodyContents.push({
+    type: 'text',
+    text: '💡 สามารถค้นหาได้ด้วยเลขบัตรประชาชน 13 หลัก',
+    size: 'xs',
+    color: '#55aaff',
+    margin: 'sm',
+    align: 'center',
+    wrap: true,
+  });
+
   return {
     type: 'flex',
     altText: `ข้อมูล: ${d.name || '—'}`,
@@ -1736,6 +1747,76 @@ function buildPersonInfoFlex(d, imageUrl = null) {
         paddingAll: 'lg',
         contents: bodyContents,
       },
+    },
+  };
+}
+
+/**
+ * สร้าง Flex Message แสดงรายการชื่อซ้ำ (status=multiple)
+ * แต่ละคนมีปุ่มเพื่อดึงข้อมูลด้วย ref
+ */
+function buildPersonMatchesFlex(query, matches) {
+  const bubbles = matches.map((m, idx) => {
+    const name    = m.name    || m.fullname || '—';
+    const pid     = m.pid     || m.cid      || '—';
+    const address = m.address || m.addr     || '';
+    const ref     = m.ref     || m.id       || '';
+
+    const infoRows = [];
+    if (pid && pid !== '—') {
+      infoRows.push({
+        type: 'box', layout: 'horizontal', spacing: 'sm',
+        contents: [
+          { type: 'text', text: '🪪', size: 'xs', flex: 0 },
+          { type: 'text', text: pid, size: 'xs', color: '#aaccee', flex: 1, wrap: true },
+        ],
+      });
+    }
+    if (address) {
+      infoRows.push({
+        type: 'box', layout: 'horizontal', spacing: 'sm',
+        contents: [
+          { type: 'text', text: '📍', size: 'xs', flex: 0 },
+          { type: 'text', text: address, size: 'xs', color: '#aaccee', flex: 1, wrap: true },
+        ],
+      });
+    }
+
+    return {
+      type: 'bubble',
+      size: 'kilo',
+      styles: { body: { backgroundColor: '#1a1a2e' } },
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'md', paddingAll: 'md',
+        contents: [
+          {
+            type: 'box', layout: 'horizontal', backgroundColor: '#16213e',
+            paddingAll: 'sm', cornerRadius: 'md',
+            contents: [
+              { type: 'text', text: `👤 ${idx + 1}.`, size: 'xs', color: '#8899aa', flex: 0 },
+              { type: 'text', text: name, size: 'sm', color: '#ffffff', weight: 'bold', margin: 'sm', flex: 1, wrap: true },
+            ],
+          },
+          ...(infoRows.length ? [{
+            type: 'box', layout: 'vertical', spacing: 'xs', margin: 'sm',
+            contents: infoRows,
+          }] : []),
+          {
+            type: 'button', style: 'primary', height: 'sm', margin: 'md',
+            color: '#2b5ce6',
+            action: { type: 'message', label: '🔍 ดูข้อมูลคนนี้', text: `/xapi-ref ${ref}` },
+          },
+        ],
+      },
+    };
+  });
+
+  return {
+    type: 'flex',
+    altText: `พบชื่อซ้ำ ${matches.length} คน — กรุณาเลือกบุคคลที่ต้องการ`,
+    contents: {
+      type: 'carousel',
+      contents: bubbles,
     },
   };
 }
@@ -1763,4 +1844,5 @@ module.exports = {
   buildRiskLocationMenuFlex,
   buildAllRiskLocationsMenuFlex,
   buildPersonInfoFlex,
+  buildPersonMatchesFlex,
 };
