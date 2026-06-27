@@ -290,6 +290,11 @@ function buildWelcomeFlex(isAdminUser = false) {
     menuContents.push(buildMenuButton('➕', 'เพิ่มบุคคลสุ่มเสี่ยง', '/เพิ่ม', '#27ae60'));
   }
 
+  // ถ้ายังไม่ใช่ Admin ให้แสดงปุ่มยืนยันตัวตน
+  if (!isAdminUser) {
+    menuContents.push(buildMenuButton('🔐', 'ยืนยันตัวตนเจ้าหน้าที่', '/ยืนยันตัวตน', '#7d3c98'));
+  }
+
   menuContents.push(
     buildMenuButton('👥', 'ทำเนียบบุคลากร สภ.ลานสัก', 'ทำเนียบบุคลากร',    '#1a5276'),
     buildMenuButton('🏘️', 'ทำเนียบผู้นำตำบล',         'ทำเนียบผู้นำตำบล',  '#1d6a4a'),
