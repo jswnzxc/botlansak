@@ -43,7 +43,7 @@ const {
   appendLocationRecord, blockUserInSheet, loadBlockedUsersFromSheet,
   isConfigured: isSheetConfigured,
   setUserReminderTime, getDueReminders,
-  checkAuthCode, consumeAuthCode, addPersonnelFromVerify,
+  checkAuthCode, consumeAuthCode,
 } = require('./sheets-writer');
 const { broadcastToAll, broadcastToTarget, getStats, buildBroadcastResultFlex } = require('./broadcast');
 const { askAI } = require('./ai');
@@ -381,7 +381,8 @@ async function handleEvent(event) {
 
       if (consumeResult.success) {
         await refreshUserCache();
-        await addPersonnelFromVerify(userId, displayName, codeInput);
+        // หมายเหตุ: ไม่เพิ่มรายชื่อเข้า sheet "บุคลากร สภ." อีกต่อไป
+        // ข้อมูลผู้ยืนยันตัวตนจะถูกบันทึกไว้ใน sheet "รหัสยืนยันตัวตน" โดย consumeAuthCode() แทน
 
         // แจ้งเตือน Master Admin
         try {

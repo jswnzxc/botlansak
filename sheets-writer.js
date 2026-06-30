@@ -83,18 +83,18 @@ async function consumeAuthCode(code, userId, displayName) {
       // อัปเดตแถวที่มีอยู่แล้ว
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_VERIFY}!B${existingRowIdx + 1}:D${existingRowIdx + 1}`,
+        range: `${SHEET_VERIFY}!B${existingRowIdx + 1}:E${existingRowIdx + 1}`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [[userId, displayName || '', now]] },
+        requestBody: { values: [[userId, displayName || '', now, 'บุคคลที่ได้รับการยืนยันตัวตน']] },
       });
     } else {
       // เพิ่มแถวใหม่
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_VERIFY}!A:D`,
+        range: `${SHEET_VERIFY}!A:E`,
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[normalizedCode, userId, displayName || '', now]] },
+        requestBody: { values: [[normalizedCode, userId, displayName || '', now, 'บุคคลที่ได้รับการยืนยันตัวตน']] },
       });
     }
 
@@ -112,47 +112,12 @@ async function consumeAuthCode(code, userId, displayName) {
 }
 
 /**
- * เพิ่มรายชื่อบุคลากรเข้า Sheet "บุคลากร สภ." เมื่อยืนยันตัวตนสำเร็จ
- * คอลัมน์: A=ยศ, B=ชื่อ, C=นามสกุล, D=ตำแหน่ง, E=ฝ่าย/งาน, F=โทรศัพท์, G=อีเมล, H=วันที่บันทึก
- * ใช้ displayName จาก LINE Profile เป็นชื่อ และนามเรียกขานเป็นตำแหน่ง
+ * หมายเหตุ: เดิมมีฟังก์ชัน addPersonnelFromVerify() สำหรับเพิ่มรายชื่อเข้า Sheet "บุคลากร สภ."
+ * อัตโนมัติเมื่อยืนยันตัวตนสำเร็จ — ปัจจุบันถูกตัดออกแล้วตามคำขอ
+ * ข้อมูลผู้ยืนยันตัวตน (รหัส, userId, displayName, วันเวลา) จะถูกบันทึกไว้ที่
+ * Sheet "รหัสยืนยันตัวตน" (SHEET_VERIFY) ผ่านฟังก์ชัน consumeAuthCode() เท่านั้น
+ * การเพิ่มชื่อเข้า "บุคลากร สภ." ให้แอดมินทำผ่านเมนูจัดการ/กรอกมือแทน
  */
-async function addPersonnelFromVerify(userId, displayName, authCode) {
-  const sheets = getSheetsClient();
-  const now = new Date().toLocaleDateString('th-TH', {
-    year: 'numeric', month: 'long', day: 'numeric',
-    timeZone: 'Asia/Bangkok',
-  });
-
-  // แยกชื่อจาก displayName (ถ้ามีช่องว่าง ถือว่า "ชื่อ นามสกุล")
-  const nameParts = (displayName || '').trim().split(/\s+/);
-  const firstName = nameParts[0] || displayName || '';
-  const lastName  = nameParts.slice(1).join(' ') || '';
-
-  const row = [
-    '',           // A: ยศ (ว่าง รอกรอกภายหลัง)
-    firstName,    // B: ชื่อ
-    lastName,     // C: นามสกุล
-    authCode,     // D: ตำแหน่ง (ใช้นามเรียกขานชั่วคราว)
-    'เจ้าหน้าที่', // E: ฝ่าย/งาน
-    '',           // F: โทรศัพท์
-    '',           // G: อีเมล
-    now,          // H: วันที่บันทึก
-  ];
-
-  try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_PERSONNEL}!A:H`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: { values: [row] },
-    });
-    return { success: true };
-  } catch (err) {
-    console.error('Error adding personnel from verify:', err.message);
-    return { success: false, message: err.message };
-  }
-}
 
 /**
  * บันทึกสถานที่ลง Google Sheets
@@ -593,5 +558,5 @@ module.exports = {
   blockUserInSheet, loadBlockedUsersFromSheet,
   setUserReminderTime, getDueReminders,
   updateUserRoleInSheet,
-  checkAuthCode, consumeAuthCode, addPersonnelFromVerify, VALID_AUTH_CODES,
+  checkAuthCode, consumeAuthCode, VALID_AUTH_CODES,
 };
