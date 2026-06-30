@@ -902,7 +902,7 @@ function buildPhoneInfoRow(icon, label, value) {
       { type: 'text', text: label, color: '#888888', size: 'sm', flex: 3, margin: 'sm' },
       {
         type: 'text',
-        text: `${value}  📲`,
+        text: `${value}`,
         color: '#1a73e8',
         size: 'sm',
         weight: 'bold',
